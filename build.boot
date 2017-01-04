@@ -1,9 +1,12 @@
 (set-env!
  :source-paths    #{"src"}
  :resource-paths  #{"resources"}
- :dependencies '[[org.clojure/clojurescript "1.9.229"]
+ :dependencies '[[org.clojure/clojurescript "1.9.293"]
                  [org.clojure/tools.nrepl "0.2.12" :scope "test"]
+                 [org.clojure/test.check "0.9.0" :scope "test"]
+                 [crisptrutski/boot-cljs-test "0.3.0" :scope "test"]
                  [com.cemerick/piggieback "0.2.1" :scope "test"]
+                 [reagent "0.6.0"]
                  [weasel "0.7.0" :scope "test"]
                  [adzerk/boot-cljs "1.7.228-1" :scope "test"]
                  [adzerk/boot-cljs-repl "0.3.3" :scope "test"]
@@ -12,7 +15,10 @@
 (require
  '[adzerk.boot-cljs      :refer [cljs]]
  '[adzerk.boot-cljs-repl :refer [cljs-repl start-repl]]
- '[adzerk.boot-reload    :refer [reload]])
+ '[adzerk.boot-reload    :refer [reload]]
+ '[crisptrutski.boot-cljs-test :refer [test-cljs]])
+
+(deftask testing [] (merge-env! :source-paths #{"test"}) identity)
 
 (deftask prod-build []
   (comp (cljs :ids #{"main"}
