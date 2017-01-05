@@ -1,4 +1,4 @@
-(ns cljsnes.cpu
+(ns cljsnes.byte
   (:require [cljs.spec :as s]))
 
 (s/def ::byte (s/int-in 0 256))

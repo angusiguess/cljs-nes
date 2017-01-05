@@ -3,7 +3,7 @@
             [cljs.spec :as s]
             [cljs.pprint :as pprint]
             [cljs.spec.test :as stest]
-            [cljsnes.cpu :as cpu]))
+            [cljsnes.byte :as byte]))
 
 (enable-console-print!)
 
@@ -14,17 +14,15 @@
   (is (empty? (->> spec-check
                    (filter :failure))) (summarize-results' spec-check)))
 
-(deftest a-binary-test
-  (is (bit-test 256 8)))
 
-(deftest addition
-  (check' (stest/check [`cljsnes.cpu/add
-                        `cljsnes.cpu/inc
-                        `cljsnes.cpu/neg-byte?
-                        `cljsnes.cpu/asl
-                        `cljsnes.cpu/lsr
-                        `cljsnes.cpu/l-and
-                        `cljsnes.cpu/l-or
-                        `cljsnes.cpu/l-xor])))
+(deftest byte-arithmetic
+  (check' (stest/check [`byte/add
+                        `byte/inc
+                        `byte/neg-byte?
+                        `byte/asl
+                        `byte/lsr
+                        `byte/l-and
+                        `byte/l-or
+                        `byte/l-xor])))
 
 (run-tests)
