@@ -1,4 +1,5 @@
-(ns cljsnes.cpu)
+(ns cljsnes.cpu
+  (:require [cljsnes.byte :as byte]))
 
 
 ;; Memory map for state
@@ -29,3 +30,25 @@
 
 ;; So our state is: memory, registers, and status flags, everything
 ;; can operate on them.
+
+(s/def ::A ::byte/byte)
+
+(s/def ::X ::byte/byte)
+
+(s/def ::PC (s/int-in 0 65536))
+
+(s/def ::S ::byte/byte)
+
+(s/def ::C ::byte/carry-bit)
+
+(s/def ::Z #{0 1})
+
+(s/def ::B #{0 1})
+
+(s/def ::V #{0 1})
+
+(s/def ::N #{0 1})
+
+(s/def ::mem (s/coll-of ::byte/byte []))
+
+(s/def ::state (s/keys :req-un [:A :X :PC :S :C :Z :B :V :N :mem]))
