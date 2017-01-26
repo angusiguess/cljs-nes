@@ -43,6 +43,8 @@
 
 (s/def ::Z #{0 1})
 
+(s/def ::I #{0 1})
+
 (s/def ::B #{0 1})
 
 (s/def ::V #{0 1})
@@ -51,4 +53,72 @@
 
 (s/def ::mem (s/coll-of ::byte/byte []))
 
-(s/def ::state (s/keys :req-un [:A :X :PC :S :C :Z :B :V :N :mem]))
+(s/def ::cycles nat-int?)
+
+(s/def ::state (s/keys :req-un [:A :X :PC :S :C :Z :B :V :N :mem :cycles]))
+
+;; Doing things to state
+
+(defn get-byte [state byte]
+  (get-in state [:mem byte]))
+
+;; Eventually we'll want to broadcast cycle ticks for video.
+
+(defonce cycle-clock (a/chan 1024))
+
+(defn tick! [{:keys [cycles] :as state}]
+  (a/put! (inc cycles))
+  (update state :cycles inc))
+
+;; Address modes
+
+(defn immediate [state b1 b2]
+  byte)
+
+(defn absolute [state byte]
+  (get-byte state byte))
+
+
+;; Instructions, assuming addressing and everything else has been handled.
+
+(defn clc [state]
+  (assoc state :C 0))
+
+(defn cli [state]
+  (assoc state :I 0))
+
+(defn clv [state]
+  (assoc state :V 0))
+
+(defn adc [{:keys [A] :as state} val]
+  (let [[sum carry] (byte/add A val)]
+    (cond-> state
+      (= 1 carry) (assoc :C 1
+                         :N 1))))
+
+(defn and [{:keys [A] :as state} val]
+  (let [new-a (byte/l-and A val)]
+    (cond-> state
+      true (assoc :A new-a)
+      (zero? new-a) (assoc :Z 1)
+      (byte/neg-byte? new-a) (assoc :N 1))))
+
+(defn asl [state val]
+  (let [[new-a carry] (byte/asl val)]
+    (cond-> state
+      true (assoc :A new-a)
+      true (assoc :C carry)
+      (zero? new-a) (assoc :Z 1)
+      (byte/neg-byte? new-a) (assoc :N 1))))
+
+(defn bcc [{:keys [C] :as state} val]
+  (cond-> state
+    (zero? C) (update :PC + val)))
+
+(defn bcs [{:keys [C] :as state} val]
+  (cond-> state
+    (> C 0) (update :PC + val)))
+
+(defn beq [{:keys [Z] :as state}]
+  (cond-> state
+    (> Z 0) (update :PC + val)))
