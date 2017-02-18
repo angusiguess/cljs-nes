@@ -1,7 +1,10 @@
-(ns cljsnes.byte
-  (:require [cljs.spec :as s]))
+(ns cljsnes.arith
+  (:require [cljs.spec :as s])
+  (:refer-clojure :exclude [inc]))
 
 (s/def ::byte (s/int-in 0 256))
+
+(s/def ::address (s/int-in 0 65536))
 
 (s/def ::carry-bit #{0 1})
 
@@ -14,6 +17,13 @@
 
 (defn inc [x]
   (add x 1))
+
+(defn make-address [lower upper]
+  (+ lower (bit-shift-left upper 8)))
+
+(s/fdef make-address
+        :args (s/cat :lower ::byte :upper ::byte)
+        :ret ::address)
 
 (s/fdef add
         :args (s/cat :x ::byte :y ::byte)

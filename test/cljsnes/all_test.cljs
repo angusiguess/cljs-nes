@@ -3,7 +3,8 @@
             [cljs.spec :as s]
             [cljs.pprint :as pprint]
             [cljs.spec.test :as stest]
-            [cljsnes.byte :as byte]))
+            [cljsnes.opcodes :as opcodes]
+            [cljsnes.arith :as arith]))
 
 (enable-console-print!)
 
@@ -16,13 +17,18 @@
 
 
 (deftest byte-arithmetic
-  (check' (stest/check [`byte/add
-                        `byte/inc
-                        `byte/neg-byte?
-                        `byte/asl
-                        `byte/lsr
-                        `byte/l-and
-                        `byte/l-or
-                        `byte/l-xor])))
+  (check' (stest/check [`arith/add
+                        `arith/inc
+                        `arith/neg-byte?
+                        `arith/asl
+                        `arith/lsr
+                        `arith/l-and
+                        `arith/l-or
+                        `arith/l-xor
+                        `arith/make-address])))
+
+(deftest opcodes-conform
+    (is (nil? (s/explain :opcode/ops opcodes/ops))))
+
 
 (run-tests)

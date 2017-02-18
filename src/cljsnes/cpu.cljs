@@ -1,5 +1,11 @@
 (ns cljsnes.cpu
-  (:require [cljsnes.byte :as byte]))
+  (:require [cljsnes.arith :as arith]
+            [cljsnes.memory :as memory]
+            [cljsnes.opcodes :as opcodes]
+            [cljs.spec :as s]
+            [cljs.core.async :as a]
+            [cljs.core :as c])
+  (:refer-clojure :exclude [and]))
 
 
 ;; Memory map for state
@@ -31,15 +37,16 @@
 ;; So our state is: memory, registers, and status flags, everything
 ;; can operate on them.
 
-(s/def ::A ::byte/byte)
 
-(s/def ::X ::byte/byte)
+(s/def ::A ::arith/byte)
 
-(s/def ::PC (s/int-in 0 65536))
+(s/def ::X ::arith/byte)
 
-(s/def ::S ::byte/byte)
+(s/def ::PC ::arith/address)
 
-(s/def ::C ::byte/carry-bit)
+(s/def ::S ::arith/byte)
+
+(s/def ::C ::arith/carry-bit)
 
 (s/def ::Z #{0 1})
 
@@ -51,74 +58,165 @@
 
 (s/def ::N #{0 1})
 
-(s/def ::mem (s/coll-of ::byte/byte []))
+(s/def ::nmi-vector ::arith/address)
+
+(s/def ::reset-vector ::arith/address)
+
+(s/def ::irq-brk-vector ::arith/address)
 
 (s/def ::cycles nat-int?)
 
-(s/def ::state (s/keys :req-un [:A :X :PC :S :C :Z :B :V :N :mem :cycles]))
+(s/def ::state (s/keys :req-un [::A ::X ::PC ::I ::S ::C ::Z ::B ::V ::N
+                                ::cycles ::nmi-vector ::reset-vector
+                                ::irq-brk-vector]))
 
-;; Doing things to state
+;; Manipulating state
 
-(defn get-byte [state byte]
-  (get-in state [:mem byte]))
+(defonce cpu-state (atom nil))
+
+(defn get-address [memory address]
+  (let [lower (memory/read memory address)
+        upper (memory/read memory (inc address))]
+    (arith/make-address lower upper)))
+
+(defn init-state [memory]
+  (reset! cpu-state {:A 0
+                     :X 0
+                     :PC (get-address memory 0xFFFC)
+                     :S 0xFD
+                     :C 0
+                     :Z 0
+                     :I 1
+                     :B 0
+                     :V 0
+                     :N 1
+                     :memory memory
+                     :cycles 0
+                     :nmi-vector (get-address memory 0xFFFA)
+                     :reset-vector (get-address memory 0xFFFC)
+                     :irq-brk-vector (get-address memory 0xFFFE)}))
 
 ;; Eventually we'll want to broadcast cycle ticks for video.
 
 (defonce cycle-clock (a/chan 1024))
 
 (defn tick! [{:keys [cycles] :as state}]
-  (a/put! (inc cycles))
+  (a/put! cycle-clock (inc cycles))
   (update state :cycles inc))
 
-;; Address modes
+(defn exec [state]
+  (let [pc (:PC state)
+        memory (:memory state)
+        op (memory/read memory pc)]
+    (get opcodes/ops op)))
 
-(defn immediate [state b1 b2]
-  byte)
+;; Addressing
 
-(defn absolute [state byte]
-  (get-byte state byte))
+(defn page-crossed? [address offset]
+  (let [mask 0x0F00]
+    (not= (bit-and address mask)
+          (bit-and (+ address offset) mask))))
 
+(defn read-next [memory pc]
+  (memory/read memory (inc pc)))
 
-;; Instructions, assuming addressing and everything else has been handled.
+(defmulti address (fn [state op] (:address-mode op)))
 
-(defn clc [state]
-  (assoc state :C 0))
+(defmethod address :immediate [state op]
+  (let [memory (:memory state)
+        pc (:PC state)]
+    (assoc op :resolved-arg (memory/read memory (inc pc)))))
 
-(defn cli [state]
-  (assoc state :I 0))
+(defmethod address :zero [state op]
+  (let [memory (:memory state)
+        pc (:PC state)]
+    (assoc op :resolved-arg (->> pc
+                                 (read-next memory)
+                                 (memory/read memory)))))
 
-(defn clv [state]
-  (assoc state :V 0))
+(defmethod address :zero-x [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        x (:X state)
+        address (read-next memory pc)
+        [sum _] (arith/add address x)]
+    (assoc op :resolved-arg (memory/read memory sum))))
 
-(defn adc [{:keys [A] :as state} val]
-  (let [[sum carry] (byte/add A val)]
-    (cond-> state
-      (= 1 carry) (assoc :C 1
-                         :N 1))))
+(defmethod address :zero-y [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        y (:Y state)
+        address (read-next memory pc)
+        [sum _] (arith/add address y)]
+    (assoc op :resolved-arg (memory/read memory sum))))
 
-(defn and [{:keys [A] :as state} val]
-  (let [new-a (byte/l-and A val)]
-    (cond-> state
-      true (assoc :A new-a)
-      (zero? new-a) (assoc :Z 1)
-      (byte/neg-byte? new-a) (assoc :N 1))))
+(defmethod address :absolute [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        lower (read-next memory pc)
+        upper (read-next memory (inc pc))]
+    (assoc op :resolved-arg
+           (arith/make-address lower upper))))
 
-(defn asl [state val]
-  (let [[new-a carry] (byte/asl val)]
-    (cond-> state
-      true (assoc :A new-a)
-      true (assoc :C carry)
-      (zero? new-a) (assoc :Z 1)
-      (byte/neg-byte? new-a) (assoc :N 1))))
+(defmethod address :absolute-x [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        x (:X state)
+        lower (read-next memory pc)
+        upper (read-next memory (inc pc))
+        address (arith/make-address lower upper)]
+    (cond-> op
+      (page-crossed? address x) (update :cycles inc)
+      true (assoc :resolved-arg (+ address x)))))
 
-(defn bcc [{:keys [C] :as state} val]
-  (cond-> state
-    (zero? C) (update :PC + val)))
+(defmethod address :absolute-y [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        y (:Y state)
+        lower (read-next memory pc)
+        upper (read-next memory (inc pc))
+        address (arith/make-address lower upper)]
+    (cond-> op
+      (page-crossed? address y) (update :cycles inc)
+      true (assoc :resolved-arg (+ address y)))))
 
-(defn bcs [{:keys [C] :as state} val]
-  (cond-> state
-    (> C 0) (update :PC + val)))
+(defmethod address :indirect [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        lower (read-next memory pc)
+        upper (read-next memory (inc pc))
+        address (arith/make-address lower upper)]
+    (assoc op :resolved-arg (memory/read memory address))))
 
-(defn beq [{:keys [Z] :as state}]
-  (cond-> state
-    (> Z 0) (update :PC + val)))
+(defmethod address :indirect-x [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        x (:X state)
+        base-address (read-next memory pc)
+        offset-address (bit-and 0xFF
+                                  (+ x base-address))]
+    (assoc op :resolved-arg (memory/read memory offset-address))))
+
+(defmethod address :indirect-y [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        y (:Y state)
+        base-address (read-next memory pc)
+        base-value (memory/read memory base-address)
+        offset-value (+ base-value y)]
+    (cond-> op
+      (page-crossed? base-value y) (update :cycles inc)
+      true (assoc :resolved-arg offset-value))))
+
+(defmethod address :relative [state op]
+  (let [memory (:memory state)
+        pc (:PC state)
+        offset (read-next memory pc)]
+    (assoc op :resolved-arg offset)))
+
+(defmethod address :implied [state op]
+  (assoc op :resolved-arg nil))
+
+(defmethod address :accumulator [state op]
+  (let [a (:A state)]
+    (assoc op :resolved-arg a)))

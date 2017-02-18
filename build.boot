@@ -4,6 +4,7 @@
  :dependencies '[[org.clojure/clojurescript "1.9.293"]
                  [org.clojure/tools.nrepl "0.2.12" :scope "test"]
                  [org.clojure/test.check "0.9.0" :scope "test"]
+                 [org.clojure/core.async "0.2.395"]
                  [crisptrutski/boot-cljs-test "0.3.0" :scope "test"]
                  [com.cemerick/piggieback "0.2.1" :scope "test"]
                  [reagent "0.6.0"]
