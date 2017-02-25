@@ -101,27 +101,27 @@
   [rom]
   (let [header (subvec rom 0 4)
         rom-banks (get rom 4)
-        vrom-banks (get rom 5)
+        chr-banks (get rom 5)
         opts-one (get rom 6)
         opts-two (get rom 7)
         ram-banks (get rom 8)
         pal (pal? (get rom 9))
         rom-offset (+ 16 (* 16384 rom-banks))
-        vrom-offset (+ rom-offset (* 8192 vrom-banks))]
+        chr-offset (+ rom-offset (* 8192 chr-banks))]
     (assert (= header [78 69 83 26]))
     (-> {:header header
          :rom-banks rom-banks
-         :vrom-banks vrom-banks
+         :chr-banks chr-banks
          :ram-banks ram-banks
          :pal pal
          :rom-bank-bytes (mapv (partial into [])
                                (partition 16384
                                           (subvec rom 16 rom-offset)))
-         :vrom-bank-bytes (mapv (partial into [])
+         :chr-bank-bytes (mapv (partial into [])
                                 (partition 8192
                                            (subvec rom
                                                    rom-offset
-                                                   vrom-offset)))
+                                                   chr-offset)))
          :count (count rom)}
         (merge (get-opts-one opts-one)
                (get-opts-two opts-two))

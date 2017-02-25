@@ -18,8 +18,20 @@
 (defn inc [x]
   (add x 1))
 
+(defn sub [x y]
+  (let [diff (- x y)
+        masked-sum (bit-and 255 diff)
+        carry (if (bit-test diff 8) 0 1)]
+    [masked-sum carry]))
+
 (defn make-address [lower upper]
   (+ lower (bit-shift-left upper 8)))
+
+(defn address->bytes [address]
+  (let [mask-high 0xFF00
+        mask-low 0xFF]
+   [(bit-and mask-high address)
+    (bit-and mask-low address)]))
 
 (s/fdef make-address
         :args (s/cat :lower ::byte :upper ::byte)
@@ -44,11 +56,12 @@
 
 ;; Logical Shifts
 
-(defn asl [x]
-  (let [shifted (bit-shift-left x 1)
-        masked (bit-and shifted 255)
-        carry (if (neg-byte? shifted) 1 0)]
-    [masked carry]))
+(defn asl ([x offset]
+           (let [shifted (bit-shift-left x offset)
+                 masked (bit-and shifted 255)
+                 carry (if (neg-byte? shifted) 1 0)]
+             [masked carry]))
+  ([x] (asl x 1)))
 
 (s/fdef asl
         :args (s/cat :x ::byte)
@@ -66,6 +79,9 @@
         :fn #(or (<= (-> % :ret :shifted) (-> % :args :x))
                  (= (-> % :ret :carry) 1))
         :ret (s/cat :shifted ::byte :carry ::carry-bit))
+
+(defn unsigned->signed [x]
+  (- x 128))
 
 ;; Logical ops
 

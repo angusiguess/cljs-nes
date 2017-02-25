@@ -2,6 +2,8 @@
   (:require [reagent.core :as r]
             [cljs.spec :as s]
             [cljs.core.async :as a]
+            [cljsnes.state :as state]
+            [cljsnes.spec :as spec]
             [cljsnes.cpu :as cpu]
             [cljsnes.emulator :as emulator]
             [cljsnes.assembler :as assembler]
@@ -9,6 +11,8 @@
             [cljsnes.memory :as memory]
             [cljsnes.opcodes :as opcodes])
   (:require-macros [cljs.core.async.macros :refer [go]]))
+
+(enable-console-print!)
 
 (defonce lda-example (r/atom
                       "LDA #$01 ; Immediate
@@ -28,13 +32,6 @@ LDA $(7000,Y) ; Indexed Indirect, Y"))
 (defn assembled-code []
   [:div [:p (str (assembler/assemble @lda-example))]])
 
-(defn cpu-state-component []
-  [:div
-   [:p
-    (str (dissoc cpu/init-state :mem))]
-   (assembly-container)
-   (assembled-code)])
-
 (defn get-instruction [rom]
   (let [opcode (-> rom
                    :rom-bank-bytes
@@ -49,15 +46,10 @@ LDA $(7000,Y) ; Indexed Indirect, Y"))
 
 (defn fd []
   [:div [:p (str (cartridge/parse-headers (cartridge/read-file "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")))]
-   [:p (- 0x401F 0x4018)]
-   [:p 2r00000000]
-   [:p (str (assoc [0 1 2] 1 2))]])
-
-(defn emulator-test []
-  [:p (str (cpu/exec @cpu/cpu-state))])
+   [:p (count (:vrom-bank-bytes (cartridge/parse-headers (cartridge/read-file "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes"))))]])
 
 (defn init []
   (emulator/init "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")
-  (r/render-component [emulator-test]
+  (r/render-component [fd]
                       (.getElementById js/document "container"))
   (js/console.log "Starting Application"))

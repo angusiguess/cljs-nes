@@ -9,7 +9,7 @@
                  [com.cemerick/piggieback "0.2.1" :scope "test"]
                  [reagent "0.6.0"]
                  [weasel "0.7.0" :scope "test"]
-                 [adzerk/boot-cljs "1.7.228-1" :scope "test"]
+                 [adzerk/boot-cljs "1.7.228-2" :scope "test"]
                  [adzerk/boot-cljs-repl "0.3.3" :scope "test"]
                  [adzerk/boot-reload    "0.4.13"  :scope "test"]])
 

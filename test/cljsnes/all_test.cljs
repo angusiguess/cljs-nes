@@ -3,8 +3,9 @@
             [cljs.spec :as s]
             [cljs.pprint :as pprint]
             [cljs.spec.test :as stest]
+            [cljsnes.arith :as arith]
             [cljsnes.opcodes :as opcodes]
-            [cljsnes.arith :as arith]))
+            [cljsnes.cpu :as cpu]))
 
 (enable-console-print!)
 
@@ -26,6 +27,13 @@
                         `arith/l-or
                         `arith/l-xor
                         `arith/make-address])))
+
+(deftest cpu-ops
+  (check' (stest/check [#_`cpu/push-8
+                        #_`cpu/pop-8
+                        #_`cpu/push-16
+                        #_`cpu/status->byte
+                        `cpu/byte->status])))
 
 (deftest opcodes-conform
     (is (nil? (s/explain :opcode/ops opcodes/ops))))

@@ -5,5 +5,4 @@
 
 (defn init [path]
   (let [rom (cart/load-rom path)
-        memory (memory/init-mem rom)]
-    (cpu/init-state memory)))
+        memory (memory/init-mem rom)]))
