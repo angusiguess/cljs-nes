@@ -5,6 +5,7 @@
             [cljs.spec.test :as stest]
             [cljsnes.arith :as arith]
             [cljsnes.opcodes :as opcodes]
+            [cljsnes.ppu :as ppu]
             [cljsnes.cpu :as cpu]))
 
 (enable-console-print!)
@@ -36,7 +37,20 @@
                         `cpu/byte->status])))
 
 (deftest opcodes-conform
-    (is (nil? (s/explain :opcode/ops opcodes/ops))))
+  (is (nil? (s/explain :opcode/ops opcodes/ops))))
+
+(deftest ppu-ticks-cycle
+  (testing "cycle increment"
+   (let [state (ppu/step {:ppu {:cycle 0 :line 0}})]
+     (is (= 1 (get-in state [:ppu :cycle]))))
+   (testing "cycle wrap"
+     (let [state (ppu/step {:ppu {:cycle 340 :line 10}})]
+       (is (= 0 (get-in state [:ppu :cycle])))
+       (is (= 11 (get-in state [:ppu :line])))))
+   (testing "cycle-and-line-wrap"
+     (let [state (ppu/step {:ppu {:cycle 340 :line 261}})]
+       (is (= 0 (get-in state [:ppu :cycle]))
+           (= 0 (get-in state [:ppu :line])))))))
 
 
 (run-tests)

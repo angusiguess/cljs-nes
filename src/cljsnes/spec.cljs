@@ -1,53 +1,59 @@
-(ns cljsnes.spec
-  (:require [clojure.spec :as s]
-            [cljsnes.memory :as memory]
-            [clojure.test.check.generators :as gen]))
+(s/def :ppu/nametable-select #{0 1 2 3})
 
-(s/def ::bit #{0 1})
+;; PPU MASK $2001
 
-(s/def ::byte (s/int-in 0 256))
+(s/def :ppu/colour-emphasis-red boolean?)
 
-(s/def ::address (s/int-in 0 65536))
+(s/def :ppu/colour-emphasis-green boolean?)
 
-(s/def :cpu/a ::byte)
+(s/def :ppu/colour-emphasis-blue boolean?)
 
-(s/def :cpu/x ::byte)
+(s/def :ppu/sprite-enable boolean?)
 
-(s/def :cpu/y ::byte)
+(s/def :ppu/background-enable boolean?)
 
-(s/def :cpu/pc ::address)
+(s/def :ppu/sprite-column-left boolean?)
 
-(s/def :cpu/s ::byte)
+(s/def :ppu/background-left-column-enable boolean?)
 
-(s/def :cpu/n ::bit)
+(s/def :ppu/greyscale boolean?)
 
-(s/def :cpu/c ::bit)
+;; PPU STATUS $2002
 
-(s/def :cpu/z ::bit)
+(s/def :ppu/vblank boolean?)
 
-(s/def :cpu/i ::bit)
+(s/def :ppu/sprite-zero-hit boolean?)
 
-(s/def :cpu/d ::bit)
+(s/def :ppu/sprite-overflow boolean?)
 
-(s/def :cpu/b ::bit)
+(s/def :ppu/oam-addr ::byte)
 
-(s/def :cpu/u ::bit)
+(s/def :ppu/oam-data ::byte)
 
-(s/def :cpu/v ::bit)
+(s/def :ppu/ppu-scroll ::byte)
 
-(s/def :cpu/n ::bit)
+(s/def :ppu/ppu-addr ::byte)
 
-(s/def :cpu/cycles (s/int-in 0 1000000000))
+(s/def :ppu/ppu-data ::byte)
 
-(s/def :state/memory (s/spec any?
-                             :gen #(gen/return
-                                    (memory/init-mem {:mapper 0}))))
+(s/def :ppu/oam-data ::byte)
 
-(s/def :state/cpu (s/keys :req-un [:cpu/a :cpu/x :cpu/pc :cpu/s :cpu/c
-                                   :cpu/z :cpu/i :cpu/d :cpu/b :cpu/u
-                                   :cpu/v :cpu/n :cpu/cycles]))
+(s/def :ppu/rgb (s/int-in 0x000000 0x1000000))
 
-(s/def :cpu/status (s/keys :req-un [:cpu/n :cpu/v :cpu/b :cpu/d
-                                    :cpu/i :cpu/z :cpu/c]))
+(s/def :ppu/display (s/coll-of :ppu/rgb
+                               :count 61440
+                               :into []))
+
+(s/def ::ppu (s/keys :req-un [:ppu/cycle :ppu/scan-line :ppu/frame
+                              :ppu/nmi-enable :ppu/master :ppu/sprite-height
+                              :ppu/background-tile-select :ppu/increment-mode
+                              :ppu/colour-emphasis-red :ppu/colour-emphasis-green
+                              :ppu/colour-emphasis-blue :ppu/sprite-column-left
+                              :ppu/background-left-column-enable :ppu/vblank
+                              :ppu/sprite-zero-hit :ppu/sprite-overflow
+                              :ppu/oam-addr :ppu/oam-data :ppu/ppu-scroll
+                              :ppu/ppu-addr :ppu/ppu-data :ppu/oam-data]))
+
+;; State
 
 (s/def ::state (s/keys :req-un [:state/cpu :state/memory]))

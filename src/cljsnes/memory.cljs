@@ -4,6 +4,8 @@
   (read [_ addr])
   (write [_ addr byte]))
 
+;; CPU ROM mappers
+
 (defrecord Nrom [ram ppu-registers apu-io test-mode
                  lower-bank upper-bank prg-ram]
   Memory
@@ -76,9 +78,47 @@
           upper-bank
           prg-ram))
 
+;; PPU memory maps
+
+(defrecord NromPPU [chr vram mirroring palette-ram]
+  Memory
+  (read [_ addr]
+    (let [vram-offset 0x2000
+          palette-offset 0x3000]
+      (cond (<= 0x0000 addr 0x1FFF) (get chr addr)
+            (<= 0x2000 addr 0x2FFF) (get vram (- addr vram-offset))
+            (<= 0x3F00 addr 0x3FFF) (get palette-ram (- addr palette-offset))
+            :else (throw (js/Error (str "Address" addr "out of range"))))))
+  (write [_ addr byte]
+    (let [vram-offset 0x2000
+          palette-offset 0x3000]
+      (cond (<= 0x2000 addr 0x2FFF) (NromPPU. chr
+                                              (assoc vram
+                                                     (- addr vram-offset)
+                                                     byte)
+                                              mirroring
+                                              palette-ram)
+            (<= 0x3000 addr 0x3FFF) (NromPPU. chr
+                                              vram
+                                              mirroring
+                                              (assoc palette-ram
+                                                     (- addr palette-offset)
+                                                     byte))
+            :else (throw (js/Error (str "Address" addr "out of range")))))))
+
+(defn make-nrom-ppu [chr mirroring]
+  (->NromPPU chr
+             (into [] (repeat 0xFFF 0))
+             mirroring
+             (into [] (repeat 0x1F 0))))
+
 (defn init-mem [rom]
   (case (:mapper rom)
     0 (make-nrom (get-in rom [:rom-bank-bytes 0])
                  (or (get-in rom [:rom-bank-bytes 1])
                      (get-in rom [:rom-bank-bytes 0]))
                  (get-in rom [:vrom-bank-bytes 0]))))
+
+(defn init-ppu [rom]
+  (case (:mapper rom)
+    0 ()))
