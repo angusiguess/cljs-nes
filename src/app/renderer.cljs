@@ -45,7 +45,7 @@ LDA $(7000,Y) ; Indexed Indirect, Y"))
    [:p (str (s/valid? :opcode/ops opcodes/ops))]])
 
 (defn fd []
-  [:div [:p (str (cartridge/parse-headers (cartridge/read-file "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")))]
+  #_[:div [:p (str (cartridge/parse-headers (cartridge/read-file "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")))]
    [:p (count (:vrom-bank-bytes (cartridge/parse-headers (cartridge/read-file "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes"))))]])
 
 (defn init []

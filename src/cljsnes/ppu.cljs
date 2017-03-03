@@ -32,8 +32,27 @@
 (defn zero-cycle [state]
   (assoc-in state [:ppu :cycle] 0))
 
+(defn set-vblank! [state]
+  (let [memory (get-in state [:ppu :memory])
+        byte (memory/read memory 0x2002)]
+    (-> state
+        (assoc-in [:ppu :memory] (memory/write memory 0x2002 (bit-or 0x70 byte)))
+        (assoc-in [:ppu :vblank] true))))
+
+(defn clear-vblank! [state]
+  (let [memory (get-in state [:ppu :memory])
+        byte (memory/read memory 0x2002)]
+    (-> state
+        (assoc-in [:ppu :memory] (memory/write memory
+                                               0x2002
+                                               (bit-or 0xE0 byte)))
+        (assoc-in [:ppu :vblank] false))))
+
 (defn get-frame [state]
   (get-in state [:ppu :frame]))
+
+(defn nmi-enabled? [state]
+  (get-in state [:ppu :nmi-enable]))
 
 (defn get-ppu-mask [state]
   (memory/read (get-memory state) 0x2001))
@@ -66,7 +85,14 @@
   (let [line (get-line state)
         cycle (get-cycle state)]
     (and (= line 241)
-         (= cycle 1))))
+         (= cycle 1)
+         (nmi-intterupt? state))))
+
+(defn clear-v-blank? [state]
+  (let [line (get-line state)
+        cycle (get-cycle state)]
+    (and (= 261 line)
+         (= 1 cycle))))
 
 (defn visible-cycle [cycle]
   (<= 1 cycle 256))
@@ -92,6 +118,11 @@
     (cycle-wrap? state) zero-cycle
     (line-wrap? state) zero-line))
 
+(defn trigger-vblank! [state]
+  (set-vblank! state))
+
 (defn step [state]
   (cond-> state
-    true tick!))
+    true tick!
+    (vblank? state) trigger-vblank!
+    (clear-vblank? state) clear-vblank!))

@@ -4,7 +4,6 @@
             [cljsnes.opcodes :as opcodes]
             [cljsnes.spec :as spec]
             [cljs.spec :as s]
-            [cljs.core.async :as a]
             [cljs.core :as c]
             [cljs.pprint :as pprint]
             [cljs.reader :as reader])
@@ -110,13 +109,26 @@
 
 ;; Eventually we'll want to broadcast cycle ticks for video.
 
-(defonce cycle-clock (a/chan 1024))
+(defn set-ticks! [state ticks]
+  (assoc-in state [:cpu :ticks] ticks))
+
+(defn inc-ticks! [state]
+  (update-in state [:cpu :ticks] inc))
+
+(defn dec-ticks! [state]
+  (update-in state [:cpu :ticks] dec))
+
+(defn inc-cycles! [state]
+  (update-in state [:cpu :cycles] inc))
+
 
 (defn tick! [{:keys [cpu] :as state} ticks]
-  (let [{:keys [cycles]} cpu]
-    (dotimes [_ ticks]
-     (a/put! cycle-clock (inc cycles)))
-    (update-in state [:cpu :cycles] + ticks)))
+  (let [{:keys [cycles ticks]} cpu]
+    (if (< 0 ticks) (-> state
+                        dec-ticks!
+                        inc-cycles!)
+        ())))
+
 
 ;; Addressing
 
@@ -352,7 +364,7 @@
       (not= (arith/neg-byte? sum) (arith/neg-byte? a)) set-overflow
       (= 1 carry) set-carry
       (arith/neg-byte? sum) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :and [state {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -361,7 +373,7 @@
     (cond-> state
       (zero? and-a) set-zero
       (arith/neg-byte? and-a) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (set-a-to and-a)
       true (advance-pc bytes-read))))
 
@@ -372,7 +384,7 @@
       true (set-carry-to carry)
       (zero? shifted) set-zero
       (arith/neg-byte? shifted) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (set-a-to shifted)
       true (advance-pc bytes-read))))
 
@@ -382,11 +394,11 @@
         pc (get-pc state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! cycles)
-      (zero? c) (tick! 1)
+      true (set-ticks! cycles)
+      (zero? c) (set-ticks! 1)
       (zero? c) (advance-pc signed-arg)
       (pos? c) (advance-pc bytes-read)
-      (page-crossed? pc signed-arg) (tick! 1))))
+      (page-crossed? pc signed-arg) (set-ticks! 1))))
 
 (defmethod exec-op :bcs [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -394,11 +406,11 @@
         pc (get-pc state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! cycles)
-      (pos? c) (tick! 1)
+      true (set-ticks! cycles)
+      (pos? c) (set-ticks! 1)
       (pos? c) (advance-pc signed-arg)
       (zero? c) (advance-pc bytes-read)
-      (page-crossed? pc signed-arg) (tick! 1))))
+      (page-crossed? pc signed-arg) (set-ticks! 1))))
 
 (defmethod exec-op :beq [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -406,17 +418,17 @@
         pc (get-pc state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! cycles)
-      (pos? z) (tick! 1)
+      true (set-ticks! cycles)
+      (pos? z) (set-ticks! 1)
       (pos? z) (advance-pc signed-arg)
       (zero? z) (advance-pc bytes-read)
-      (page-crossed? pc signed-arg) (tick! 1))))
+      (page-crossed? pc signed-arg) (set-ticks! 1))))
 
 (defmethod exec-op :bit [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
   (let [a (get-a state)]
     (cond-> state
-      true (tick! cycles)
+      true (set-ticks! cycles)
       (zero? (bit-and a resolved-arg)) set-zero
       true (set-overflow-to (bit-test resolved-arg 6))
       true (set-negative-to (bit-test resolved-arg 7))
@@ -428,10 +440,10 @@
         n (get-negative state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! cycles)
-      (pos? n) (tick! 1)
+      true (set-ticks! cycles)
+      (pos? n) (set-ticks! 1)
       (pos? n) (advance-pc signed-arg)
-      (c/and (pos? n) (page-crossed? pc signed-arg)) (tick! 1)
+      (c/and (pos? n) (page-crossed? pc signed-arg)) (set-ticks! 1)
       (zero? n) (advance-pc bytes-read))))
 
 (defmethod exec-op :bne [state
@@ -440,11 +452,11 @@
         pc (get-pc state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! cycles)
-      (zero? z) (tick! 1)
+      true (set-ticks! cycles)
+      (zero? z) (set-ticks! 1)
       (zero? z) (advance-pc signed-arg)
       (pos? z) (advance-pc bytes-read)
-      (c/and (zero? z) (page-crossed? pc signed-arg)) (tick! 1))))
+      (c/and (zero? z) (page-crossed? pc signed-arg)) (set-ticks! 1))))
 
 (defmethod exec-op :bpl [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -452,10 +464,10 @@
         n (get-negative state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! cycles)
-      (zero? n) (tick! 1)
+      true (set-ticks! cycles)
+      (zero? n) (set-ticks! 1)
       (zero? n) (advance-pc signed-arg)
-      (c/and (zero? n) (page-crossed? pc signed-arg)) (tick! 1)
+      (c/and (zero? n) (page-crossed? pc signed-arg)) (set-ticks! 1)
       (pos? n) (advance-pc bytes-read))))
 
 (defmethod exec-op :brk [state
@@ -465,7 +477,7 @@
         (push-16 pc)
         (push-8 (status->byte state))
         (set-pc-to (:irq-brk-vector state))
-        (tick! 7))))
+        (set-ticks! 7))))
 
 (defmethod exec-op :bvc [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -473,10 +485,10 @@
         v (get-overflow state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! 2)
+      true (set-ticks! 2)
       (zero? v) (advance-pc signed-arg)
-      (zero? v) (tick! 1)
-      (c/and (zero? v) (page-crossed? pc signed-arg)) (tick! 1)
+      (zero? v) (set-ticks! 1)
+      (c/and (zero? v) (page-crossed? pc signed-arg)) (set-ticks! 1)
       (pos? v) (advance-pc bytes-read))))
 
 (defmethod exec-op :bvs [state
@@ -485,35 +497,35 @@
         v (get-overflow state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (tick! 2)
+      true (set-ticks! 2)
       (pos? v) (advance-pc signed-arg)
-      (pos? v) (tick! 1)
-      (c/and (pos? v) (page-crossed? pc signed-arg)) (tick! 1)
+      (pos? v) (set-ticks! 1)
+      (c/and (pos? v) (page-crossed? pc signed-arg)) (set-ticks! 1)
       (zero? v) (advance-pc bytes-read))))
 
 (defmethod exec-op :clc [state {:keys [cycles bytes-read] :as op}]
   (-> state
       clear-carry
       (advance-pc bytes-read)
-      (tick! cycles)))
+      (set-ticks! cycles)))
 
 (defmethod exec-op :cld [state {:keys [cycles bytes-read] :as op}]
   (-> state
       clear-decimal
       (advance-pc bytes-read)
-      (tick! cycles)))
+      (set-ticks! cycles)))
 
 (defmethod exec-op :cli [state {:keys [cycles bytes-read] :as op}]
   (-> state
       clear-interrupt
       (advance-pc bytes-read)
-      (tick! cycles)))
+      (set-ticks! cycles)))
 
 (defmethod exec-op :clv [state {:keys [cycles bytes-read] :as op}]
   (-> state
       clear-overflow
       (advance-pc bytes-read)
-      (tick! cycles)))
+      (set-ticks! cycles)))
 
 (defmethod exec-op :cmp [state {:keys [cycles bytes-read resolved-arg] :as op}]
   (let [a (get-a state)
@@ -522,7 +534,7 @@
       (arith/neg-byte? diff) set-negative
       (zero? diff) set-zero
       (neg? diff) set-carry
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :cpx [state {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -532,7 +544,7 @@
       (arith/neg-byte? diff) set-negative
       (zero? diff) set-zero
       (neg? diff) set-carry
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :cpy [state {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -542,7 +554,7 @@
       (arith/neg-byte? diff) set-negative
       (zero? diff) set-zero
       (neg? diff) set-carry
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :dec [state
@@ -555,7 +567,7 @@
                                         decced))
       (zero? decced) set-zero
       (arith/neg-byte? decced) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :dex [state
@@ -565,7 +577,7 @@
       true dec-x
       (zero? (dec x)) set-zero
       (arith/neg-byte? (dec x)) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :dey [state
@@ -575,7 +587,7 @@
       true dec-y
       (zero? (dec y)) set-zero
       (arith/neg-byte? (dec y)) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :eor [state
@@ -587,7 +599,7 @@
     (cond-> state
       (zero? x-or) set-zero
       (arith/neg-byte? x-or) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :inc [state
@@ -600,7 +612,7 @@
                                         inced))
       (zero? inced) set-zero
       (arith/neg-byte? inced) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :inx [state
@@ -611,7 +623,7 @@
       true inc-x
       (zero? inced) set-zero
       (arith/neg-byte? inced) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :iny [state
@@ -622,14 +634,14 @@
       true inc-y
       (zero? inced) set-zero
       (arith/neg-byte? inced) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :jmp [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
   ;; fix weird paging error
   (-> state
-      (tick! cycles)
+      (set-ticks! cycles)
       (assoc :PC resolved-arg)))
 
 (defmethod exec-op :jsr [state
@@ -639,7 +651,7 @@
     (-> state
         (push-8 return)
         (set-pc-to resolved-arg)
-        (tick! cycles))))
+        (set-ticks! cycles))))
 
 (defmethod exec-op :lda [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
@@ -647,7 +659,7 @@
     true (assoc :A resolved-arg)
     (zero? resolved-arg) set-zero
     (arith/neg-byte? resolved-arg) set-negative
-    true (tick! cycles)
+    true (set-ticks! cycles)
     true (advance-pc bytes-read)))
 
 (defmethod exec-op :ldx [state
@@ -656,7 +668,7 @@
     true (set-x-to resolved-arg)
     (zero? resolved-arg) set-zero
     (arith/neg-byte? resolved-arg) set-negative
-    true (tick! cycles)
+    true (set-ticks! cycles)
     true (advance-pc bytes-read)))
 
 (defmethod exec-op :ldy [state
@@ -665,7 +677,7 @@
     true (assoc :Y resolved-arg)
     (zero? resolved-arg) set-zero
     (arith/neg-byte? resolved-arg) set-negative
-    true (tick! cycles)
+    true (set-ticks! cycles)
     true (advance-pc bytes-read)))
 
 (defmethod exec-op :lsr [state
@@ -678,7 +690,7 @@
       true (set-carry-to carry)
       (zero? shifted) set-zero
       (arith/neg-byte? shifted) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc cycles)
       (= :accumulator address-mode) (set-a-to shifted)
       (not= :accumulator address-mode) (assoc :memory (memory/write memory
@@ -687,7 +699,7 @@
 
 (defmethod exec-op :nop [state {:keys [cycles bytes-read]}]
   (-> state
-      (tick! cycles)
+      (set-ticks! cycles)
       (advance-pc bytes-read)))
 
 (defmethod exec-op :ora [state {:keys [cycles bytes-read resolved-arg]}]
@@ -697,27 +709,27 @@
       (zero? ored-a) set-zero
       (arith/neg-byte? ored-a) set-negative
       true (set-a-to ored-a)
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :pha [state {:keys [cycles bytes-read]}]
   (let [a (get-a state)]
     (-> state
         (push-8 a)
-        (tick! cycles)
+        (set-ticks! cycles)
         (advance-pc bytes-read))))
 
 (defmethod exec-op :php [state {:keys [cycles bytes-read]}]
   (-> state
       (push-8 (status->byte state))
-      (tick! cycles)
+      (set-ticks! cycles)
       (advance-pc bytes-read)))
 
 (defmethod exec-op :pla [state {:keys [cycles bytes-read]}]
   (let [[pop popped-state] (pop-8 state)]
     (-> popped-state
         (assoc :A pop)
-        (tick! cycles)
+        (set-ticks! cycles)
         (advance-pc bytes-read))))
 
 (defmethod exec-op :plp [state {:keys [cycles bytes-read]}]
@@ -725,7 +737,7 @@
         flags (byte->status pop)]
     (-> popped-state
         (merge flags)
-        (tick! cycles)
+        (set-ticks! cycles)
         (advance-pc bytes-read))))
 
 (defmethod exec-op :rol [state
@@ -740,7 +752,7 @@
       true (set-carry-to carry)
       (zero? rotated) set-zero
       (arith/neg-byte? rotated) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :ror [state
@@ -755,7 +767,7 @@
       true (set-carry-to carry)
       (zero? rotated) set-zero
       (arith/neg-byte? rotated) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :rti [state {:keys [cycles bytes-read]}]
@@ -765,13 +777,13 @@
     (-> state
         (merge status-map)
         (assoc :PC pc)
-        (tick! cycles))))
+        (set-ticks! cycles))))
 
 (defmethod exec-op :rts [state {:keys [cycles]}]
   (let [[pc state] (pop-16 state)]
     (-> state
         (set-pc-to pc)
-        (tick! cycles))))
+        (set-ticks! cycles))))
 
 (defmethod exec-op :sbc [state {:keys [cycles resolved-arg bytes-read]}]
   (let [a (get-a state)
@@ -781,25 +793,25 @@
       (zero? diff) set-zero
       (zero? carry) (assoc :V 1)
       true (set-carry-to carry)
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :sec [state {:keys [cycles bytes-read]}]
   (-> state
       (advance-pc bytes-read)
-      (tick! cycles)
+      (set-ticks! cycles)
       set-carry))
 
 (defmethod exec-op :sed [state {:keys [cycles bytes-read]}]
   (-> state
       (advance-pc bytes-read)
-      (tick! cycles)
+      (set-ticks! cycles)
       set-decimal))
 
 (defmethod exec-op :sei [state {:keys [cycles bytes-read] :as op}]
   (-> state
       set-interrupt
-      (tick! cycles)
+      (set-ticks! cycles)
       (advance-pc bytes-read)))
 
 (defmethod exec-op :sta [state
@@ -807,7 +819,7 @@
   (let [memory (:memory state)
         a (get-a state)]
     (-> state
-        (tick! cycles)
+        (set-ticks! cycles)
         (advance-pc bytes-read)
         (assoc :memory (memory/write memory resolved-address a)))))
 
@@ -816,7 +828,7 @@
   (let [memory (:memory state)
         x (get-x state)]
     (-> state
-        (tick! cycles)
+        (set-ticks! cycles)
         (advance-pc bytes-read)
         (assoc :memory (memory/write memory resolved-address x)))))
 
@@ -825,7 +837,7 @@
   (let [memory (:memory state)
         y (get-y state)]
     (-> state
-        (tick! cycles)
+        (set-ticks! cycles)
         (advance-pc bytes-read)
         (assoc :memory (memory/write memory resolved-address y)))))
 
@@ -836,7 +848,7 @@
       true (set-x-to a)
       (zero? a) set-zero
       (arith/neg-byte? a) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :tay [state
@@ -846,7 +858,7 @@
       true (set-y-to a)
       (zero? a) set-zero
       (arith/neg-byte? a) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :tsx [state
@@ -856,7 +868,7 @@
       true (set-x-to sp)
       (zero? sp) set-zero
       (arith/neg-byte? sp) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :txa [state
@@ -866,7 +878,7 @@
       true (set-a-to x)
       (zero? x) set-zero
       (arith/neg-byte? x) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :txs [state
@@ -876,7 +888,7 @@
       true (assoc :S x)
       (zero? x) set-zero
       (arith/neg-byte? x) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :tya [state
@@ -886,7 +898,7 @@
       true (set-a-to y)
       (zero? y) set-zero
       (arith/neg-byte? y) set-negative
-      true (tick! cycles)
+      true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
 (defn exec [state]
