@@ -68,7 +68,9 @@
       (let [pushed-state (cpu/push-16 state 0xBBCC)]
         (is (= 0xFD (get-in pushed-state [:cpu :s])))
         (is (= 0xBBCC (first (cpu/pop-16 pushed-state))))
-        #_(is (= 0xBB (first (cpu-pop-16 pushed-state))))))))
+        (is (= 0xFF (-> (cpu/pop-16 pushed-state)
+                        last
+                        (get-in [:cpu :s]))))))))
 
 
 (run-tests)
