@@ -30,8 +30,8 @@
 (defn address->bytes [address]
   (let [mask-high 0xFF00
         mask-low 0xFF]
-   [(bit-and mask-high address)
-    (bit-and mask-low address)]))
+    [(bit-and mask-low address)
+     (bit-shift-right (bit-and mask-high address) 8)]))
 
 (s/fdef make-address
         :args (s/cat :lower ::byte :upper ::byte)

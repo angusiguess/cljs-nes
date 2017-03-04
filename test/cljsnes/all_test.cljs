@@ -3,6 +3,7 @@
             [cljs.spec :as s]
             [cljs.pprint :as pprint]
             [cljs.spec.test :as stest]
+            [cljsnes.memory :as memory]
             [cljsnes.arith :as arith]
             [cljsnes.opcodes :as opcodes]
             [cljsnes.ppu :as ppu]
@@ -51,6 +52,23 @@
      (let [state (ppu/step {:ppu {:cycle 340 :line 261}})]
        (is (= 0 (get-in state [:ppu :cycle]))
            (= 0 (get-in state [:ppu :line])))))))
+
+(deftest cpu-stack-test
+  (let [memory (memory/make-nrom [[]] [[]] [[]])
+        state {:cpu {:memory memory
+                     :s 0xFF}}]
+    (testing "push-8 pop-8"
+      (let [pushed-state (cpu/push-8 state 0xBB)]
+        (is (= 0xFE (get-in pushed-state [:cpu :s])))
+        (is (= 0xBB (first (cpu/pop-8 pushed-state))))
+        (is (= 0xFF (-> (cpu/pop-8 pushed-state)
+                        last
+                        (get-in [:cpu :s]))))))
+    (testing "push-16 pop-16"
+      (let [pushed-state (cpu/push-16 state 0xBBCC)]
+        (is (= 0xFD (get-in pushed-state [:cpu :s])))
+        (is (= 0xBBCC (first (cpu/pop-16 pushed-state))))
+        #_(is (= 0xBB (first (cpu-pop-16 pushed-state))))))))
 
 
 (run-tests)

@@ -64,9 +64,9 @@
 (s/fdef pop-8 :args (s/cat :state ::spec/state)
         :ret ::spec/state)
 
-(defn pop-8 [{:keys [memory cpu] :as state}]
-  (let [{:keys [s]} cpu
-        to-pop (memory/read memory s)]
+(defn pop-8 [{:keys [cpu] :as state}]
+  (let [{:keys [s memory]} cpu
+        to-pop (memory/read memory (inc s))]
     [to-pop (update-in state [:cpu :s] inc)]))
 
 (s/fdef push-16 :args (s/cat :state ::spec/state :address ::spec/address)
@@ -82,9 +82,9 @@
         :ret ::spec/state)
 
 (defn pop-16 [state]
-  (let [[low state] (pop-8 state)
-        [high state] (pop-8 state)]
-    [(arith/make-address low high) state]))
+  (let [[low low-state] (pop-8 state)
+        [high high-state] (pop-8 low-state)]
+    [(arith/make-address low high) high-state]))
 
 (s/fdef status->byte :args (s/cat :state ::spec/state)
         :ret ::spec/byte)
@@ -650,7 +650,7 @@
         return (+ pc bytes-read)
         memory (get-memory state)]
     (-> state
-        (push-8 return)
+        (push-16 return)
         (set-pc-to resolved-address)
         (set-ticks! cycles))))
 
@@ -774,7 +774,7 @@
 (defmethod exec-op :rti [state {:keys [cycles bytes-read]}]
   (let [[status state] (pop-8 state)
         status-map (byte->status status)
-        pc (pop-16 state)]
+        [pc state] (pop-16 state)]
     (-> state
         (merge status-map)
         (assoc :PC pc)
