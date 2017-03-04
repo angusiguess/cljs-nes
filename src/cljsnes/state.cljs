@@ -49,7 +49,6 @@
 
 (defn step! []
   (let [next (first @order)]
-    (println "Step Type:" next)
     (swap! order rest)
     (if (= :ppu next) (swap! state ppu/step)
         (swap! state cpu/step))))

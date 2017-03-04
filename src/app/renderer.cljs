@@ -11,13 +11,17 @@
             [cljsnes.cartridge :as cartridge]
             [cljsnes.memory :as memory]
             [cljsnes.opcodes :as opcodes])
-  (:require-macros [cljs.core.async.macros :refer [go]]))
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]]))
 
 (enable-console-print!)
 
 (def ppu-cycles (r/cursor state/state [:ppu :cycle]))
 
+(def ppu-line (r/cursor state/state [:ppu :line]))
+
 (def cpu-cycles (r/cursor state/state [:cpu :cycles]))
+
+(defonce stop-chan (a/chan))
 
 (defn init-button []
   [:div [:input {:type "button"
@@ -29,11 +33,26 @@
                  :value "Step State!"
                  :on-click #(state/step!)}]])
 
+(defn stop-button []
+  [:div [:input {:type "button"
+                 :value "Stop state!"
+                 :on-click #(a/put! stop-chan :stop)}]])
+
+(defn run-button []
+  [:div [:input {:type "button"
+                 :value "Run state!"
+                 :on-click #(go-loop []
+                              (let [[v ch] (a/alts! [stop-chan (go 1)])]
+                                (when (not= ch stop-chan)
+                                  (state/step!)
+                                  (recur))))}]])
+
 (defn cpu-cycle []
   [:div [:p "CPU Cycles: " @cpu-cycles]])
 
 (defn ppu-cycle []
-  [:div [:p "PPU Cycles: " @ppu-cycles]])
+  [:div [:p "PPU Cycles: " @ppu-cycles]
+   [:p "PPU Line: " @ppu-line]])
 
 (defn cpu-pc []
   (let [cursor (r/cursor state/state [:cpu :pc])]
@@ -52,6 +71,8 @@
   [:div
    (init-button)
    (step-button)
+   (run-button)
+   (stop-button)
    (ppu-cycle)
    (cpu-cycle)
    (cpu-pc)

@@ -7,6 +7,7 @@
 ; $3000-3EFF is usually a mirror of the 2kB region from $2000-2EFF. The PPU does not render from this address range, so this space has negligible utility.
 ;; $3F00-3FFF is not configurable, always mapped to the internal palette control.
 
+(enable-console-print!)
 
 (defn get-memory [state]
   (get-in state [:ppu :memory]))
@@ -27,7 +28,9 @@
   (update-in state [:ppu :cycle] inc))
 
 (defn zero-cycle [state]
-  (assoc-in state [:ppu :cycle] 0))
+  (-> state
+      (assoc-in [:ppu :cycle] 0)
+      (update-in [:ppu :line] inc)))
 
 (defn set-vblank! [state]
   (let [memory (get-in state [:ppu :memory])
@@ -118,7 +121,6 @@
 (defn tick! [state]
   (cond-> state
     (not (cycle-wrap? state)) inc-cycle
-    (not (line-wrap? state)) inc-line
     (cycle-wrap? state) zero-cycle
     (line-wrap? state) zero-line))
 

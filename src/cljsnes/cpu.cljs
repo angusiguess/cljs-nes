@@ -2,6 +2,7 @@
   (:require [cljsnes.arith :as arith]
             [cljsnes.memory :as memory]
             [cljsnes.opcodes :as opcodes]
+            [cljsnes.interrupts :as interrupts]
             [cljsnes.spec :as spec]
             [cljs.spec :as s]
             [cljs.core :as c]
@@ -462,7 +463,6 @@
   (let [pc (get-pc state)
         n (get-negative state)
         signed-arg (arith/unsigned->signed resolved-arg)]
-    (println signed-arg)
     (cond-> state
       true (set-ticks! cycles)
       (zero? n) inc-ticks!
@@ -476,7 +476,7 @@
     (-> state
         (push-16 pc)
         (push-8 (status->byte state))
-        (set-pc-to (get-in state [:cpu :brk]))
+        (set-pc-to (get-in state [:cpu :irq]))
         (set-ticks! 7))))
 
 (defmethod exec-op :bvc [state
@@ -901,13 +901,28 @@
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
+;; Interrupt handling
+
+(defn handle-interrupt [state interrupt]
+  (println "Handling interrupt: " interrupt)
+  (let [vector (get-in state [:cpu interrupt])
+        pc (get-pc state)
+        status (status->byte state)
+        interrupt-cycles 7]
+    (-> state
+        (push-16 pc)
+        (push-8 status)
+        (set-pc-to vector)
+        (set-ticks! interrupt-cycles))))
+
+;; Tick
+
 (defn tick! [{:keys [cpu] :as state} instruction]
   (let [{:keys [cycles ticks]} cpu]
-    (if (< 0 ticks) (do
-                      (println "Tick")
-                      (-> state
-                            dec-ticks!
-                            inc-cycles!))
+    (cond (< 0 ticks) (-> state
+                          dec-ticks!
+                          inc-cycles!)
+          (interrupts/check-interrupt state)
         (do
           (println instruction)
           (exec-op state instruction)))))
