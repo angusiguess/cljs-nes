@@ -49,16 +49,17 @@
 
 (s/def :cpu/reset ::byte)
 
-(s/def :state/memory (s/spec any?
+(s/def :cpu/memory (s/spec any?
                              :gen #(gen/return
                                     (memory/init-mem {:mapper 0}))))
 
-(s/def :state/cpu (s/keys :req-un [:cpu/a :cpu/x :cpu/pc :cpu/s :cpu/c
-                                   :cpu/z :cpu/i :cpu/d :cpu/b :cpu/u
-                                   :cpu/v :cpu/n :cpu/cycles]))
-
 (s/def :cpu/status (s/keys :req-un [:cpu/n :cpu/v :cpu/b :cpu/d
                                     :cpu/i :cpu/z :cpu/c]))
+
+(s/def :state/cpu (s/keys :req-un [:cpu/a :cpu/x :cpu/pc :cpu/s :cpu/c
+                                   :cpu/z :cpu/i :cpu/d :cpu/b :cpu/u
+                                   :cpu/v :cpu/n :cpu/cycles :cpu/ticks
+                                   :cpu/memory]))
 
 ;; PPU
 
@@ -144,4 +145,4 @@
 
 ;; State
 
-(s/def ::state (s/keys :req-un [:state/cpu :state/memory]))
+(s/def ::state (s/keys :req-un [:state/cpu :state/ppu]))

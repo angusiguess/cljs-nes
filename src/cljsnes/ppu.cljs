@@ -1,15 +1,12 @@
 (ns cljsnes.ppu
   (:require [clojure.spec :as s]
-            [cljsnes.memory :as memory]
-            [clojure.core.async :as a]))
+            [cljsnes.memory :as memory]))
 
 ;;$0000-1FFF is normally mapped by the cartridge to a CHR-ROM or CHR-RAM, often with a bank switching mechanism.
 ;; $2000-2FFF is normally mapped to the 2kB NES internal VRAM, providing 2 nametables with a mirroring configuration controlled by the cartridge, but it can be partly or fully remapped to RAM on the cartridge, allowing up to 4 simultaneous nametables.
 ; $3000-3EFF is usually a mirror of the 2kB region from $2000-2EFF. The PPU does not render from this address range, so this space has negligible utility.
 ;; $3F00-3FFF is not configurable, always mapped to the internal palette control.
 
-
-(def cycle-chan (a/chan))
 
 (defn get-memory [state]
   (get-in state [:ppu :memory]))
@@ -34,9 +31,13 @@
 
 (defn set-vblank! [state]
   (let [memory (get-in state [:ppu :memory])
+        cpu-memory (get-in state [:cpu :memory])
         byte (memory/read memory 0x2002)]
     (-> state
         (assoc-in [:ppu :memory] (memory/write memory 0x2002 (bit-or 0x70 byte)))
+        (assoc-in [:cpu :memory] (memory/write cpu-memory
+                                               0x2002
+                                               (bit-or 0x70 byte)))
         (assoc-in [:ppu :vblank] true))))
 
 (defn clear-vblank! [state]
@@ -69,6 +70,9 @@
   (or (background-enabled? state)
       (sprite-enabled? state)))
 
+(defn nmi-interrupt? [state]
+  (get-in state [:ppu :nmi-enable]))
+
 (defn even-frame? [state]
   (get-in state [:ppu :f]))
 
@@ -86,9 +90,9 @@
         cycle (get-cycle state)]
     (and (= line 241)
          (= cycle 1)
-         (nmi-intterupt? state))))
+         (nmi-interrupt? state))))
 
-(defn clear-v-blank? [state]
+(defn clear-vblank? [state]
   (let [line (get-line state)
         cycle (get-cycle state)]
     (and (= 261 line)
@@ -119,10 +123,13 @@
     (line-wrap? state) zero-line))
 
 (defn trigger-vblank! [state]
+  (-> state
+      set-vblank!
+      (assoc :interrupt :nmi))
   (set-vblank! state))
 
 (defn step [state]
   (cond-> state
     true tick!
-    (vblank? state) trigger-vblank!
+    (v-blank? state) trigger-vblank!
     (clear-vblank? state) clear-vblank!))

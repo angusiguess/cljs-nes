@@ -4,6 +4,7 @@
             [cljs.core.async :as a]
             [cljsnes.state :as state]
             [cljsnes.spec :as spec]
+            [clojure.pprint :as pprint]
             [cljsnes.cpu :as cpu]
             [cljsnes.emulator :as emulator]
             [cljsnes.assembler :as assembler]
@@ -14,42 +15,49 @@
 
 (enable-console-print!)
 
-(defonce lda-example (r/atom
-                      "LDA #$01 ; Immediate
-LDA $a0000 ; Absolute
-LDA $b0 ; Zero Page
-LDA $c0,X ; Zero Page, X
-LDA $d0,Y ; Zero Page, Y
-LDA $e000,X ; Absolute X
-LDA $f000,Y ; Absolute Y
-LDA $(7000) ; Indirect
-LDA $(7000,X) ; Indexed Indirect, X
-LDA $(7000,Y) ; Indexed Indirect, Y"))
+(def ppu-cycles (r/cursor state/state [:ppu :cycle]))
 
-(defn assembly-container []
-  [:textarea {:rows 10 :cols 60 :defaultValue @lda-example}])
+(def cpu-cycles (r/cursor state/state [:cpu :cycles]))
 
-(defn assembled-code []
-  [:div [:p (str (assembler/assemble @lda-example))]])
+(defn init-button []
+  [:div [:input {:type "button"
+                 :value "Init State!"
+                 :on-click #(emulator/init "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")}]])
 
-(defn get-instruction [rom]
-  (let [opcode (-> rom
-                   :rom-bank-bytes
-                   first
-                   first)]
-    (get opcodes/ops opcode)))
+(defn step-button []
+  [:div [:input {:type "button"
+                 :value "Step State!"
+                 :on-click #(state/step!)}]])
 
+(defn cpu-cycle []
+  [:div [:p "CPU Cycles: " @cpu-cycles]])
 
-(defn opcodes-valid? []
+(defn ppu-cycle []
+  [:div [:p "PPU Cycles: " @ppu-cycles]])
+
+(defn cpu-pc []
+  (let [cursor (r/cursor state/state [:cpu :pc])]
+    [:div [:p "Program Counter: " (pprint/cl-format nil "~x" @cursor)]]))
+
+(defn cpu-registers []
+  (let [a (r/cursor state/state [:cpu :a])
+        x (r/cursor state/state [:cpu :x])
+        y (r/cursor state/state [:cpu :y])
+        i (r/cursor state/state [:cpu :i])
+        s (r/cursor state/state [:cpu :s])]
+    [:div [:p "A: " @a " X: " @x " Y: " @y " I: " @i]
+          [:p "Stack Pointer: " @s]]))
+
+(defn container []
   [:div
-   [:p (str (s/valid? :opcode/ops opcodes/ops))]])
-
-(defn fd []
-  #_[:div [:p (str (cartridge/parse-headers (cartridge/read-file "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")))]
-   [:p (count (:vrom-bank-bytes (cartridge/parse-headers (cartridge/read-file "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes"))))]])
+   (init-button)
+   (step-button)
+   (ppu-cycle)
+   (cpu-cycle)
+   (cpu-pc)
+   (cpu-registers)])
 
 (defn init []
-  (emulator/init "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")
-  (r/render-component [fd]
+  (r/render-component [container]
                       (.getElementById js/document "container"))
   (js/console.log "Starting Application"))

@@ -81,7 +81,9 @@
         :ret (s/cat :shifted ::byte :carry ::carry-bit))
 
 (defn unsigned->signed [x]
-  (- x 128))
+  (let [mask 128]
+    (+ (- (bit-and x mask))
+       (bit-and x (bit-not mask)))))
 
 ;; Logical ops
 

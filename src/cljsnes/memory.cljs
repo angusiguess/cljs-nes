@@ -119,6 +119,7 @@
                      (get-in rom [:rom-bank-bytes 0]))
                  (get-in rom [:vrom-bank-bytes 0]))))
 
-(defn init-ppu [rom]
+(defn init-ppu-mem [rom]
   (case (:mapper rom)
-    0 ()))
+    0 (make-nrom-ppu (get-in rom [:chr-bank-bytes 0])
+                     (get rom :vertical-mirroring))))
