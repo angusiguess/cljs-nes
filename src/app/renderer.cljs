@@ -47,6 +47,16 @@
                                   (state/step!)
                                   (recur))))}]])
 
+(defn save-state []
+  [:div [:input {:type "button"
+                 :value "Save state"
+                 :on-click #(state/save-state!)}]])
+
+(defn load-state []
+  [:div [:input {:type "button"
+                 :value "Load state"
+                 :on-click #(state/load-state!)}]])
+
 (defn cpu-cycle []
   [:div [:p "CPU Cycles: " @cpu-cycles]])
 
@@ -71,6 +81,8 @@
   [:div
    (init-button)
    (step-button)
+   (save-state)
+   (load-state)
    (run-button)
    (stop-button)
    (ppu-cycle)

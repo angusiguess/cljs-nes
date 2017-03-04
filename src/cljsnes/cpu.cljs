@@ -55,10 +55,10 @@
 (s/fdef push-8 :args (s/cat :state ::spec/state :byte ::spec/byte)
         :ret ::spec/state)
 
-(defn push-8 [{:keys [memory cpu] :as state} byte]
-  (let [{:keys [s]} cpu]
+(defn push-8 [{:keys [cpu] :as state} byte]
+  (let [{:keys [s memory]} cpu]
     (-> state
-        (assoc :memory (memory/write memory s byte))
+        (assoc-in [:cpu :memory] (memory/write memory s byte))
         (update-in [:cpu :s] dec))))
 
 (s/fdef pop-8 :args (s/cat :state ::spec/state)
@@ -279,11 +279,10 @@
 (defmethod address :absolute [state op]
   (let [memory (get-memory state)
         pc (get-pc state)
-        lower (read-next memory pc)
-        upper (read-next memory (inc pc))]
+        address (get-address memory (inc pc))]
     (assoc op :resolved-arg (memory/read memory
-                                         (arith/make-address lower upper))
-           :resolved-address (arith/make-address lower upper))))
+                                         address)
+           :resolved-address address)))
 
 (defmethod address :absolute-x [state op]
   (let [memory (get-memory state)
@@ -645,12 +644,14 @@
       (assoc :PC resolved-arg)))
 
 (defmethod exec-op :jsr [state
-                         {:keys [cycles bytes-read resolved-arg] :as op}]
+                         {:keys [cycles bytes-read resolved-arg
+                                 resolved-address] :as op}]
   (let [pc (get-pc state)
-        return (+ pc bytes-read)]
+        return (+ pc bytes-read)
+        memory (get-memory state)]
     (-> state
         (push-8 return)
-        (set-pc-to resolved-arg)
+        (set-pc-to resolved-address)
         (set-ticks! cycles))))
 
 (defmethod exec-op :lda [state
@@ -906,6 +907,7 @@
 (defn handle-interrupt [state interrupt]
   (println "Handling interrupt: " interrupt)
   (let [vector (get-in state [:cpu interrupt])
+        _ (println (pprint/cl-format nil "~x" vector))
         pc (get-pc state)
         status (status->byte state)
         interrupt-cycles 7]
@@ -913,19 +915,21 @@
         (push-16 pc)
         (push-8 status)
         (set-pc-to vector)
-        (set-ticks! interrupt-cycles))))
+        (set-ticks! interrupt-cycles)
+        (assoc :interrupt nil))))
 
 ;; Tick
 
 (defn tick! [{:keys [cpu] :as state} instruction]
-  (let [{:keys [cycles ticks]} cpu]
+  (let [{:keys [cycles ticks]} cpu
+        interrupt (interrupts/check-interrupt state)]
     (cond (< 0 ticks) (-> state
                           dec-ticks!
                           inc-cycles!)
-          (interrupts/check-interrupt state)
-        (do
-          (println instruction)
-          (exec-op state instruction)))))
+          interrupt (handle-interrupt state interrupt)
+          :else (do
+                  (println instruction)
+                  (exec-op state instruction)))))
 
 (defn step [state]
   (let [pc (get-pc state)

@@ -125,10 +125,10 @@
     (line-wrap? state) zero-line))
 
 (defn trigger-vblank! [state]
+  (println "Triggering Vblank")
   (-> state
       set-vblank!
-      (assoc :interrupt :nmi))
-  (set-vblank! state))
+      (assoc :interrupt :nmi)))
 
 (defn step [state]
   (cond-> state

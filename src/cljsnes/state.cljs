@@ -9,6 +9,8 @@
 
 (defonce order (r/atom (cycle [:ppu :ppu :ppu :cpu])))
 
+(defonce save-state (r/atom nil))
+
 (defn init-state [memory ppu-memory]
   {:cpu {:a 0
          :x 0
@@ -52,3 +54,9 @@
     (swap! order rest)
     (if (= :ppu next) (swap! state ppu/step)
         (swap! state cpu/step))))
+
+(defn save-state! []
+  (reset! save-state @state))
+
+(defn load-state! []
+  (reset! state @save-state ))
