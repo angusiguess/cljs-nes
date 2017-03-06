@@ -286,12 +286,10 @@
   (let [memory (get-memory state)
         pc (get-pc state)
         x (get-x state)
-        lower (read-next memory pc)
-        upper (read-next memory (inc pc))
-        address (arith/make-address lower upper)]
+        address (get-address memory (inc pc))]
     (cond-> op
       (page-crossed? address x) (update :cycles inc)
-      true (assoc :resolved-arg (+ address x)
+      true (assoc :resolved-arg (memory/cpu-read memory (+ address x))
                   :resolved-address (+ address x)))))
 
 (defmethod address :absolute-y [state op]
@@ -303,7 +301,7 @@
         address (arith/make-address lower upper)]
     (cond-> op
       (page-crossed? address y) (update :cycles inc)
-      true (assoc :resolved-arg (+ address y)
+      true (assoc :resolved-arg (memory/cpu-read memory (+ address y))
                   :resolved-address (+ address y)))))
 
 (defmethod address :indirect [state op]
@@ -613,7 +611,7 @@
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :inx [state
-                         {:keys [cycles bytes-read] :as state}]
+                         {:keys [cycles bytes-read] :as op}]
   (let [x (get-x state)
         inced (inc x)]
     (cond-> state
@@ -624,7 +622,7 @@
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :iny [state
-                         {:keys [cycles bytes-read] :as state}]
+                         {:keys [cycles bytes-read] :as op}]
   (let [y (get-y state)
         inced (inc y)]
     (cond-> state
@@ -673,7 +671,7 @@
 (defmethod exec-op :ldy [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
   (cond-> state
-    true (assoc :Y resolved-arg)
+    true (set-y-to resolved-arg)
     (zero? resolved-arg) set-zero
     (arith/neg-byte? resolved-arg) set-negative
     true (set-ticks! cycles)

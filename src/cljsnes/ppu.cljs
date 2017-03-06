@@ -33,7 +33,6 @@
       (update-in [:ppu :line] inc)))
 
 (defn set-vblank! [state]
-  (assert false) ;; TODO FIX THIS
   (let [memory (get-memory state)
         byte (memory/ppu-read memory 0x2002)]
     (-> state

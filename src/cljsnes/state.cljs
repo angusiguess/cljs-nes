@@ -36,7 +36,7 @@
          :nmi-enable true}})
 
 (defn init-vectors [state]
-  (let [cpu-mem (get-in state [:cpu :memory])]
+  (let [cpu-mem (get state :memory)]
     (-> state
         (assoc-in [:cpu :nmi] (cpu/get-address cpu-mem 0xFFFA))
         (assoc-in [:cpu :reset] (cpu/get-address cpu-mem 0xFFFC))
