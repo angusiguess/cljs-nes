@@ -11,7 +11,7 @@
 
 (defonce save-state (r/atom nil))
 
-(defn init-state [memory ppu-memory]
+(defn init-state [memory]
   {:cpu {:a 0
          :x 0
          :y 0
@@ -29,12 +29,11 @@
          :ticks 0
          :nmi 0
          :irq 0
-         :reset 0
-         :memory memory}
+         :reset 0}
+   :memory memory
    :ppu {:cycle 0
          :line 0
-         :nmi-enable true
-         :memory ppu-memory}})
+         :nmi-enable true}})
 
 (defn init-vectors [state]
   (let [cpu-mem (get-in state [:cpu :memory])]
@@ -44,9 +43,9 @@
         (assoc-in [:cpu :irq] (cpu/get-address cpu-mem 0xFFFE))
         (assoc-in [:cpu :pc] (cpu/get-address cpu-mem 0xFFFC)))))
 
-(defn init! [memory ppu-memory]
+(defn init! [memory]
   (reset! state (init-vectors
-                 (init-state memory ppu-memory)))
+                 (init-state memory)))
   (reset! order (cycle [:ppu :ppu :ppu :cpu])))
 
 (defn step! []

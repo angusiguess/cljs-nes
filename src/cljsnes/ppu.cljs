@@ -10,7 +10,7 @@
 (enable-console-print!)
 
 (defn get-memory [state]
-  (get-in state [:ppu :memory]))
+  (get state :memory))
 
 (defn get-line [state]
   (get-in state [:ppu :line]))
@@ -33,21 +33,18 @@
       (update-in [:ppu :line] inc)))
 
 (defn set-vblank! [state]
-  (let [memory (get-in state [:ppu :memory])
-        cpu-memory (get-in state [:cpu :memory])
-        byte (memory/read memory 0x2002)]
+  (assert false) ;; TODO FIX THIS
+  (let [memory (get-memory state)
+        byte (memory/ppu-read memory 0x2002)]
     (-> state
-        (assoc-in [:ppu :memory] (memory/write memory 0x2002 (bit-or 0x70 byte)))
-        (assoc-in [:cpu :memory] (memory/write cpu-memory
-                                               0x2002
-                                               (bit-or 0x70 byte)))
+        (assoc :memory (memory/ppu-write memory 0x2002 (bit-or 0x70 byte)))
         (assoc-in [:ppu :vblank] true))))
 
 (defn clear-vblank! [state]
   (let [memory (get-in state [:ppu :memory])
-        byte (memory/read memory 0x2002)]
+        byte (memory/ppu-read memory 0x2002)]
     (-> state
-        (assoc-in [:ppu :memory] (memory/write memory
+        (assoc-in [:ppu :memory] (memory/ppu-write memory
                                                0x2002
                                                (bit-or 0xE0 byte)))
         (assoc-in [:ppu :vblank] false))))
@@ -59,7 +56,7 @@
   (get-in state [:ppu :nmi-enable]))
 
 (defn get-ppu-mask [state]
-  (memory/read (get-memory state) 0x2001))
+  (memory/ppu-read (get-memory state) 0x2001))
 
 (defn background-enabled? [state]
   (let [ppu-mask (get-ppu-mask state)]

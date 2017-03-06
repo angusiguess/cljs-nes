@@ -54,9 +54,9 @@
            (= 0 (get-in state [:ppu :line])))))))
 
 (deftest cpu-stack-test
-  (let [memory (memory/make-nrom [[]] [[]] [[]])
-        state {:cpu {:memory memory
-                     :s 0xFF}}]
+  (let [memory (memory/make-nrom [[]] [[]] [[]] [[]] false)
+        state {:cpu {:s 0xFF}
+               :memory memory}]
     (testing "push-8 pop-8"
       (let [pushed-state (cpu/push-8 state 0xBB)]
         (is (= 0xFE (get-in pushed-state [:cpu :s])))
@@ -71,6 +71,17 @@
         (is (= 0xFF (-> (cpu/pop-16 pushed-state)
                         last
                         (get-in [:cpu :s]))))))))
+
+(deftest ppu-registers-shared
+  (let [memory (memory/make-nrom [[]] [[]] [[]] [[]] false)]
+    (testing "Shared registers"
+      (doseq [address (range 0x2000 0x2008)]
+        (is (= 0xBB (-> memory
+                        (memory/cpu-write address 0xBB)
+                        (memory/ppu-read address))))
+        (is (= 0xBB (-> memory
+                        (memory/ppu-write address 0xBB)
+                        (memory/cpu-read address))))))))
 
 
 (run-tests)
