@@ -21,6 +21,8 @@
 
 (def cpu-cycles (r/cursor state/state [:cpu :cycles]))
 
+(def zero-flag (r/cursor state/state [:cpu :z]))
+
 (defonce stop-chan (a/chan))
 
 (defn init-button []
@@ -73,9 +75,11 @@
         x (r/cursor state/state [:cpu :x])
         y (r/cursor state/state [:cpu :y])
         i (r/cursor state/state [:cpu :i])
-        s (r/cursor state/state [:cpu :s])]
+        s (r/cursor state/state [:cpu :s])
+        z (r/cursor state/state [:cpu :z])]
     [:div [:p "A: " @a " X: " @x " Y: " @y " I: " @i]
-          [:p "Stack Pointer: " @s]]))
+     [:p "Stack Pointer: " @s]
+     [:z "Zero? " @z]]))
 
 (defn container []
   [:div

@@ -565,11 +565,12 @@
 
 (defmethod exec-op :dex [state
                          {:keys [cycles bytes-read] :as op}]
-  (let [x (get-x state)]
+  (let [x (get-x state)
+        decced (dec x)]
     (cond-> state
       true dec-x
-      true (set-zero (dec x))
-      true (set-negative (dec x))
+      true (set-zero decced)
+      true (set-negative decced)
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
@@ -723,7 +724,7 @@
 (defmethod exec-op :pla [state {:keys [cycles bytes-read]}]
   (let [[pop popped-state] (pop-8 state)]
     (-> popped-state
-        (assoc :A pop)
+        (set-a-to pop)
         (set-ticks! cycles)
         (advance-pc bytes-read))))
 
