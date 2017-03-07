@@ -355,7 +355,7 @@
     (cond-> state
       true (set-a-to sum)
       (not= (arith/neg-byte? sum) (arith/neg-byte? a)) set-overflow
-      (= 1 carry) set-carry
+      (pos? carry) set-carry
       true (set-negative sum)
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
@@ -478,7 +478,7 @@
         v (get-overflow state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (set-ticks! 2)
+      true (set-ticks! cycles)
       (zero? v) (advance-pc signed-arg)
       (zero? v) inc-ticks!
       (c/and (zero? v) (page-crossed? pc signed-arg)) inc-ticks!
@@ -490,7 +490,7 @@
         v (get-overflow state)
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
-      true (set-ticks! 2)
+      true (set-ticks! cycles)
       (pos? v) (advance-pc signed-arg)
       (pos? v) inc-ticks!
       (c/and (pos? v) (page-crossed? pc signed-arg)) inc-ticks!
@@ -772,7 +772,7 @@
         [pc state] (pop-16 state)]
     (-> state
         (merge status-map)
-        (assoc :PC pc)
+        (set-pc-to pc)
         (set-ticks! cycles))))
 
 (defmethod exec-op :rts [state {:keys [cycles]}]
@@ -787,7 +787,8 @@
     (cond-> state
       true (set-a-to diff)
       true (set-zero diff)
-      (zero? carry) (assoc :V 1)
+      (zero? carry) (set-overflow-to 1)
+      (pos? carry) (set-overflow-to 0)
       true (set-carry-to carry)
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
@@ -921,7 +922,7 @@
     (cond (< 0 ticks) (-> state
                           dec-ticks!
                           inc-cycles!)
-          interrupt (handle-interrupt state interrupt)
+          interrupt (do (handle-interrupt state interrupt))
           :else (do
                   (println instruction)
                   (exec-op state instruction)))))
