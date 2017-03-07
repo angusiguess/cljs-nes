@@ -40,12 +40,12 @@
         (assoc-in [:ppu :vblank] true))))
 
 (defn clear-vblank! [state]
-  (let [memory (get-in state [:ppu :memory])
+  (let [memory (get-memory state)
         byte (memory/ppu-read memory 0x2002)]
     (-> state
-        (assoc-in [:ppu :memory] (memory/ppu-write memory
-                                               0x2002
-                                               (bit-or 0xE0 byte)))
+        (assoc :memory (memory/ppu-write memory
+                                         0x2002
+                                         (bit-or 0xE0 byte)))
         (assoc-in [:ppu :vblank] false))))
 
 (defn get-frame [state]

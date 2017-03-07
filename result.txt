@@ -1,0 +1,16 @@
+
+;; ======================================================================
+;; Testing with Node:
+
+
+Testing cljsnes.all-test
+Success!
+
+Ran 3 tests containing 3 assertions.
+0 failures, 0 errors.
+
+Testing cljsnes.all-test
+Success!
+
+Ran 3 tests containing 3 assertions.
+0 failures, 0 errors.

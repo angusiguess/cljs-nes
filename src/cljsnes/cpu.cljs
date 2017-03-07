@@ -564,7 +564,7 @@
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :dex [state
-                         {:keys [cycles bytes-read] :as state}]
+                         {:keys [cycles bytes-read] :as op}]
   (let [x (get-x state)]
     (cond-> state
       true dec-x
