@@ -58,4 +58,4 @@
   (reset! save-state @state))
 
 (defn load-state! []
-  (reset! state @save-state ))
+  (reset! state @save-state))

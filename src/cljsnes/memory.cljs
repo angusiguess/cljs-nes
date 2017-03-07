@@ -1,4 +1,5 @@
-(ns cljsnes.memory)
+(ns cljsnes.memory
+  (:require [clojure.pprint :as pprint]))
 
 (defprotocol CPUMemory
   (cpu-read [_ addr])
@@ -25,7 +26,8 @@
                                                 (mod 0x800)))
           (<= 0x8000 addr 0xBFFF) (get lower-bank (- addr 0x8000))
           (<= 0xC000 addr 0xFFFF) (get upper-bank (- addr 0xC000))
-          :else (throw (js/Error (str "Address" addr "out of range")))))
+          :else (throw (js/Error (pprint/cl-format nil
+                                                   "Address ~x out of range" addr)))))
   (cpu-write [_ addr byte]
     (cond (<= 0x0 addr 0x1FFF) (Nrom.
                                 (assoc ram (mod addr 0x800) byte)
@@ -91,7 +93,8 @@
                                          vram
                                          mirroring
                                          palette-ram)
-          :else (throw (js/Error (str "Address" addr "out of range")))))
+          :else (throw (js/Error (pprint/cl-format nil
+                                                   "Address ~x out of range" addr)))))
   PPUMemory
   (ppu-read [_ addr]
     (let [vram-offset 0x2000
@@ -100,7 +103,8 @@
             (<= 0x2000 addr 0x2007) (get ppu-registers (- addr vram-offset))
             (<= 0x2008 addr 0x2FFF) (get vram (- addr vram-offset))
             (<= 0x3F00 addr 0x3FFF) (get palette-ram (- addr palette-offset))
-            :else (throw (js/Error (str "Address" addr "out of range"))))))
+            :else (throw (js/Error (pprint/cl-format nil
+                                                     "Address ~x out of range" addr))))))
   (ppu-write [_ addr byte]
     (let [vram-offset 0x2000
           palette-offset 0x3000]
@@ -142,7 +146,8 @@
                                        (assoc palette-ram
                                               (- addr palette-offset)
                                               byte))
-        :else (throw (js/Error (str "Address" addr "out of range")))))))
+        :else (throw (js/Error (pprint/cl-format nil
+                                                 "Address ~x out of range" addr)))))))
 
 (defn make-nrom [lower-bank upper-bank prg-ram chr mirroring]
   (map->Nrom {:ram (into [] (repeat 0x2000 0))
