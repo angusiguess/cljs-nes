@@ -1,6 +1,6 @@
 (ns cljsnes.arith
   (:require [cljs.spec :as s])
-  (:refer-clojure :exclude [inc]))
+  (:refer-clojure :exclude [inc dec]))
 
 (s/def ::byte (s/int-in 0 256))
 
@@ -23,6 +23,9 @@
         masked-sum (bit-and 255 diff)
         carry (if (bit-test diff 8) 0 1)]
     [masked-sum carry]))
+
+(defn dec [x]
+  (sub x 1))
 
 (defn make-address [lower upper]
   (+ lower (bit-shift-left upper 8)))

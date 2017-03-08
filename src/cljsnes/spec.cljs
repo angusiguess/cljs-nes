@@ -49,10 +49,6 @@
 
 (s/def :cpu/reset ::byte)
 
-(s/def :cpu/memory (s/spec any?
-                             :gen #(gen/return
-                                    (memory/init-mem {:mapper 0}))))
-
 (s/def :cpu/status (s/keys :req-un [:cpu/n :cpu/v :cpu/b :cpu/d
                                     :cpu/i :cpu/z :cpu/c]))
 

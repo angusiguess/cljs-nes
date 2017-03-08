@@ -215,7 +215,7 @@
   (get-in state [:cpu :n]))
 
 (defn set-negative [state value]
-  (let [to-set (if (neg? value) 1 0)]
+  (let [to-set (if (arith/neg-byte? value) 1 0)]
     (assoc-in state [:cpu :n] to-set)))
 
 (defn set-negative-to [state v]
@@ -554,7 +554,7 @@
                          {:keys [cycles bytes-read
                                  resolved-arg resolved-address] :as op}]
   (let [memory (get-memory state)
-        decced (dec resolved-arg)]
+        [_ decced] (arith/dec resolved-arg)]
     (cond-> state
       true (assoc :memory (memory/cpu-write memory resolved-address
                                             decced))
@@ -566,9 +566,9 @@
 (defmethod exec-op :dex [state
                          {:keys [cycles bytes-read] :as op}]
   (let [x (get-x state)
-        decced (dec x)]
+        [decced _] (arith/dec x)]
     (cond-> state
-      true dec-x
+      true (set-x-to decced)
       true (set-zero decced)
       true (set-negative decced)
       true (set-ticks! cycles)
@@ -576,9 +576,10 @@
 
 (defmethod exec-op :dey [state
                          {:keys [cycles bytes-read] :as op}]
-  (let [y (get-y state)]
+  (let [y (get-y state)
+        [decced _] (arith/dec y)]
     (cond-> state
-      true dec-y
+      true (set-y-to decced)
       true (set-zero (dec y))
       true (set-negative (dec y))
       true (set-ticks! cycles)
@@ -600,7 +601,7 @@
                          {:keys [cycles bytes-read
                                  resolved-arg resolved-address] :as op}]
   (let [memory (get-memory state)
-        inced (dec resolved-arg)]
+        [inced _] (arith/inc resolved-arg)]
     (cond-> state
       true (assoc :memory (memory/cpu-write memory resolved-address
                                             inced))
@@ -612,9 +613,9 @@
 (defmethod exec-op :inx [state
                          {:keys [cycles bytes-read] :as op}]
   (let [x (get-x state)
-        inced (inc x)]
+        [inced _] (arith/inc x)]
     (cond-> state
-      true inc-x
+      true (set-x-to inced)
       true (set-zero inced)
       true (set-negative inced)
       true (set-ticks! cycles)
@@ -623,9 +624,9 @@
 (defmethod exec-op :iny [state
                          {:keys [cycles bytes-read] :as op}]
   (let [y (get-y state)
-        inced (inc y)]
+        [inced _] (arith/inc y)]
     (cond-> state
-      true inc-y
+      true (set-y-to inced)
       true (set-zero inced)
       true (set-negative inced)
       true (set-ticks! cycles)
