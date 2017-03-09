@@ -57,6 +57,8 @@
         :args (s/cat :x nat-int?)
         :ret boolean?)
 
+
+
 ;; Logical Shifts
 
 (defn asl ([x offset]

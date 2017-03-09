@@ -237,47 +237,59 @@
 (defn clear-decimal [state]
   (assoc-in state [:cpu :d] 0))
 
+;; Dealing with 'special' reads and writes
+;; Some reads and writes make changes to the ppu. In these cases we want to
+;; achieve a side effect. This is a shim to handle those cases
+
+(defn read-memory [state address]
+  (cond (= 0x2007 address) :todo-read-data-ppu
+        :else (memory/cpu-read (get-memory state) address)))
+
+(defn write-memory [state address byte]
+  (cond (= 0x2006 address) :todo-write-address-ppu
+        (= 0x2007 address) :todo-write-data-ppu
+        (= 0x4014 address) :todo-write-data-dma
+        :else (update state :memory memory/cpu-write address byte)))
+
+
+;; Address modes
+
+
 (defmulti address (fn [state op] (:address-mode op)))
 
 (defmethod address :immediate [state op]
-  (let [memory (get-memory state)
-        pc (get-pc state)]
-    (assoc op :resolved-arg (memory/cpu-read memory (inc pc)))))
+  (let [pc (get-pc state)]
+    (assoc op :resolved-arg (read-memory state (inc pc)))))
 
 (defmethod address :zero [state op]
-  (let [memory (get-memory state)
-        pc (get-pc state)]
+  (let [pc (get-pc state)
+        reference (read-memory state (inc pc))
+        value (read-memory state reference)]
     (assoc op
-           :resolved-arg (->> pc
-                              (read-next memory)
-                              (memory/cpu-read memory))
-           :resolved-address (->> pc
-                                  (read-next memory)))))
+           :resolved-arg value
+           :resolved-address value)))
 
 (defmethod address :zero-x [state op]
-  (let [memory (get-memory state)
-        pc (get-pc state)
+  (let [pc (get-pc state)
         x (get-x state)
-        address (read-next memory pc)
+        address (read-memory state (inc pc))
         [sum _] (arith/add address x)]
-    (assoc op :resolved-arg (memory/cpu-read memory sum)
+    (assoc op :resolved-arg (read-memory state sum)
            :resolved-address sum)))
 
 (defmethod address :zero-y [state op]
-  (let [memory (get-memory state)
-        pc (get-pc state)
+  (let [pc (get-pc state)
         y (get-y state)
-        address (read-next memory pc)
+        address (read-memory state (inc pc))
         [sum _] (arith/add address y)]
-    (assoc op :resolved-arg (memory/cpu-read memory sum)
+    (assoc op :resolved-arg (read-memory state sum)
            :resolved-address sum)))
 
 (defmethod address :absolute [state op]
-  (let [memory (get-memory state)
-        pc (get-pc state)
+  (let [pc (get-pc state)
+        memory (get-memory state)
         address (get-address memory (inc pc))]
-    (assoc op :resolved-arg (memory/cpu-read memory
-                                         address)
+    (assoc op :resolved-arg (read-memory state address)
            :resolved-address address)))
 
 (defmethod address :absolute-x [state op]
@@ -287,7 +299,7 @@
         address (get-address memory (inc pc))]
     (cond-> op
       (page-crossed? address x) (update :cycles inc)
-      true (assoc :resolved-arg (memory/cpu-read memory (+ address x))
+      true (assoc :resolved-arg (read-memory state (+ address x))
                   :resolved-address (+ address x)))))
 
 (defmethod address :absolute-y [state op]
@@ -305,32 +317,32 @@
 (defmethod address :indirect [state op]
   (let [memory (get-memory state)
         pc (get-pc state)
-        lower (read-next memory pc)
-        upper (read-next memory (inc pc))
-        address (arith/make-address lower upper)]
-    (assoc op :resolved-arg (memory/cpu-read memory address))))
+        address (get-address memory (inc pc))
+        indirect-address (get-address memory address)]
+    (assoc op :resolved-arg (read-memory state indirect-address)
+           :resolved-address indirect-address)))
 
 (defmethod address :indirect-x [state op]
   (let [memory (get-memory state)
         pc (get-pc state)
         x (get-x state)
-        base-address (read-next memory pc)
-        offset-address (bit-and 0xFF
-                                  (+ x base-address))]
-    (assoc op :resolved-arg (memory/cpu-read memory offset-address)
+        address (get-address memory (inc pc))
+        offset-address (+ x address)
+        indirect-address (read-memory state offset-address)]
+    (assoc op :resolved-arg (read-memory state indirect-address)
            :resolved-address offset-address)))
 
 (defmethod address :indirect-y [state op]
   (let [memory (get-memory state)
         pc (get-pc state)
         y (get-y state)
-        base-address (read-next memory pc)
-        base-value (memory/cpu-read memory base-address)
-        offset-value (+ base-value y)]
+        address (get-address memory (inc pc))
+        offset-address (+ y address)
+        indirect-address (read-memory state offset-address)]
     (cond-> op
-      (page-crossed? base-value y) (update :cycles inc)
-      true (assoc :resolved-arg offset-value
-                  :resolved-address offset-value))))
+      (page-crossed? pc offset-address) (update :cycles inc)
+      true (assoc :resolved-arg (read-memory state indirect-address)
+                  :resolved-address indirect-address))))
 
 (defmethod address :relative [state op]
   (let [memory (get-memory state)
@@ -556,8 +568,7 @@
   (let [memory (get-memory state)
         [_ decced] (arith/dec resolved-arg)]
     (cond-> state
-      true (assoc :memory (memory/cpu-write memory resolved-address
-                                            decced))
+      true (write-memory resolved-address decced)
       true (set-zero decced)
       true (set-negative decced)
       true (set-ticks! cycles)
@@ -603,8 +614,7 @@
   (let [memory (get-memory state)
         [inced _] (arith/inc resolved-arg)]
     (cond-> state
-      true (assoc :memory (memory/cpu-write memory resolved-address
-                                            inced))
+      true (write-memory resolved-address inced)
       true (set-zero inced)
       true (set-negative inced)
       true (set-ticks! cycles)
@@ -690,9 +700,7 @@
       true (set-ticks! cycles)
       true (advance-pc bytes-read)
       (= :accumulator address-mode) (set-a-to shifted)
-      (not= :accumulator address-mode) (assoc :memory (memory/cpu-write memory
-                                                                    resolved-address
-                                                                    shifted)))))
+      (not= :accumulator address-mode) (write-memory resolved-address shifted))))
 
 (defmethod exec-op :nop [state {:keys [cycles bytes-read]}]
   (-> state
@@ -745,7 +753,7 @@
         memory (get-memory state)]
     (cond-> state
       (= :accumulator address-mode) (set-a-to rotated)
-      (not= :accumulator address-mode) (assoc :memory (memory/cpu-write memory resolved-address rotated))
+      (not= :accumulator address-mode) (write-memory resolved-address rotated)
       true (set-carry-to carry)
       true (set-zero rotated)
       true (set-negative rotated)
@@ -760,7 +768,7 @@
         memory (get-memory state)]
     (cond-> state
       (= :accumulator address-mode) (set-a-to rotated)
-      (not= :accumulator address-mode) (assoc :memory (memory/cpu-write memory resolved-address rotated))
+      (not= :accumulator address-mode) (write-memory resolved-address rotated)
       true (set-carry-to carry)
       true (set-zero rotated)
       true (set-negative rotated)
@@ -819,7 +827,7 @@
     (-> state
         (set-ticks! cycles)
         (advance-pc bytes-read)
-        (assoc :memory (memory/cpu-write memory resolved-address a)))))
+        (write-memory resolved-address a))))
 
 (defmethod exec-op :stx [state
                          {:keys [cycles resolved-address bytes-read] :as op}]
@@ -828,7 +836,7 @@
     (-> state
         (set-ticks! cycles)
         (advance-pc bytes-read)
-        (assoc :memory (memory/cpu-write memory resolved-address x)))))
+        (write-memory resolved-address x))))
 
 (defmethod exec-op :sty [state
                          {:keys [cycles resolved-address bytes-read] :as op}]
@@ -837,7 +845,7 @@
     (-> state
         (set-ticks! cycles)
         (advance-pc bytes-read)
-        (assoc :memory (memory/cpu-write memory resolved-address y)))))
+        (write-memory resolved-address y))))
 
 (defmethod exec-op :tax [state
                          {:keys [cycles resolved-address bytes-read] :as op}]
