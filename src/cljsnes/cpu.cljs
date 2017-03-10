@@ -833,6 +833,7 @@
   (let [memory (get-memory state)
         a (get-a state)]
     (cond-> state
+        (ppu-data-write? op) (ppu/write-register-data a)
         (ppu-address-write? op) (ppu/write-register-address a)
         true (set-ticks! cycles)
         true (advance-pc bytes-read)
@@ -843,6 +844,7 @@
   (let [memory (get-memory state)
         x (get-x state)]
     (cond-> state
+      (ppu-data-write? op) (ppu/write-register-data x)
       (ppu-address-write? op) (ppu/write-register-address x)
       true (set-ticks! cycles)
       true (advance-pc bytes-read)
@@ -853,6 +855,7 @@
   (let [memory (get-memory state)
         y (get-y state)]
     (cond-> state
+      (ppu-data-write? op) (ppu/write-register-data y)
       (ppu-address-write? op) (ppu/write-register-address y)
       true (set-ticks! cycles)
       true (advance-pc bytes-read)
