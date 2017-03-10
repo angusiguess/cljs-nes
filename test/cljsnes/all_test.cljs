@@ -83,5 +83,16 @@
                         (memory/ppu-write address 0xBB)
                         (memory/cpu-read address))))))))
 
+(deftest status-read
+  (is (cpu/ppu-status-read? {:resolved-address 0x2002}))
+  (is (false? (cpu/ppu-status-read? {}))))
+
+(deftest ppu-read-status
+  (let [state {:memory (memory/make-nrom [[]] [[]] [[]] [[]] false)
+               :ppu {:write-address-low 0xBB
+                     :write-address-high 0xCC}}
+        after-read (ppu/read-status state)]
+    (is (zero? (get-in after-read [:ppu :write-address-low])))
+    (is (zero? (get-in after-read [:ppu :write-address-high])))))
 
 (run-tests)

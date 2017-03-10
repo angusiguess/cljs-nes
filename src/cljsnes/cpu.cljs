@@ -4,6 +4,7 @@
             [cljsnes.opcodes :as opcodes]
             [cljsnes.interrupts :as interrupts]
             [cljsnes.spec :as spec]
+            [cljsnes.ppu :as ppu]
             [cljs.spec :as s]
             [cljs.core :as c]
             [cljs.pprint :as pprint]
@@ -47,6 +48,11 @@
   (let [lower (memory/cpu-read memory address)
         upper (memory/cpu-read memory (inc address))]
     (arith/make-address lower upper)))
+
+;; Special Reads
+
+(defn ppu-status-read? [{:keys [resolved-address] :as op}]
+  (= resolved-address 0x2002))
 
 ;; Stack Manipulation
 
@@ -355,6 +361,7 @@
   (let [a (get-a state)
         [sum carry] (arith/add a resolved-arg)]
     (cond-> state
+      (ppu-status-read? op) ppu/read-status
       true (set-a-to sum)
       (not= (arith/neg-byte? sum) (arith/neg-byte? a)) set-overflow
       (pos? carry) set-carry
@@ -366,6 +373,7 @@
   (let [a (get-a state)
         and-a (bit-and a resolved-arg)]
     (cond-> state
+      (ppu-status-read? op) ppu/read-status
       true (set-zero and-a)
       true (set-negative and-a)
       true (set-ticks! cycles)
@@ -376,6 +384,7 @@
   (let [a (get-a state)
         [shifted carry] (arith/asl a resolved-arg)]
     (cond-> state
+      (ppu-status-read? op) ppu/read-status
       true (set-carry-to carry)
       true (set-zero shifted)
       true (set-negative shifted)
@@ -637,7 +646,7 @@
   ;; fix weird paging error
   (-> state
       (set-ticks! cycles)
-      (assoc :PC resolved-arg)))
+      (assoc :pc resolved-arg)))
 
 (defmethod exec-op :jsr [state
                          {:keys [cycles bytes-read resolved-arg
@@ -653,6 +662,7 @@
 (defmethod exec-op :lda [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
   (cond-> state
+    (ppu-status-read? op) ppu/read-status
     true (set-a-to resolved-arg)
     true (set-zero resolved-arg)
     true (set-negative resolved-arg)
@@ -662,6 +672,7 @@
 (defmethod exec-op :ldx [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
   (cond-> state
+    (ppu-status-read? op) ppu/read-status
     true (set-x-to resolved-arg)
     true (set-zero resolved-arg)
     true (set-negative resolved-arg)
@@ -671,6 +682,7 @@
 (defmethod exec-op :ldy [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
   (cond-> state
+    (ppu-status-read? op) ppu/read-status
     true (set-y-to resolved-arg)
     true (set-zero resolved-arg)
     true (set-negative resolved-arg)
