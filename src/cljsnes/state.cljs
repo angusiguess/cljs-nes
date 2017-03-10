@@ -33,6 +33,8 @@
    :memory memory
    :ppu {:cycle 0
          :line 0
+         :write-address-low 0
+         :write-address-high 0
          :nmi-enable true}})
 
 (defn init-vectors [state]

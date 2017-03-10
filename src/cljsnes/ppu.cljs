@@ -54,6 +54,16 @@
 (defn nmi-enabled? [state]
   (get-in state [:ppu :nmi-enable]))
 
+(defn read-status [state]
+  (let [memory (get-memory state)
+        status (memory/ppu-read memory 0x2000)
+        v-cleared (bit-and 0x0F status)
+        updated-memory (memory/ppu-write memory 0x2000 v-cleared)]
+    (-> state
+        (assoc-in [:ppu :write-address-low] 0)
+        (assoc-in [:ppu :write-address-high] 0)
+        (assoc :memory updated-memory))))
+
 (defn get-ppu-mask [state]
   (memory/ppu-read (get-memory state) 0x2001))
 
@@ -74,7 +84,6 @@
 
 (defn even-frame? [state]
   (get-in state [:ppu :f]))
-
 
 
 (defn cycle-wrap? [state]
