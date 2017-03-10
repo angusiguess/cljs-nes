@@ -1,5 +1,6 @@
 (ns cljsnes.ppu
   (:require [clojure.spec :as s]
+            [cljsnes.arith :as arith]
             [cljsnes.memory :as memory]))
 
 ;;$0000-1FFF is normally mapped by the cartridge to a CHR-ROM or CHR-RAM, often with a bank switching mechanism.
@@ -32,6 +33,9 @@
       (assoc-in [:ppu :cycle] 0)
       (update-in [:ppu :line] inc)))
 
+(defn get-write-started [state]
+  (get-in state [:ppu :write-started]))
+
 (defn set-vblank! [state]
   (let [memory (get-memory state)
         byte (memory/ppu-read memory 0x2002)]
@@ -62,7 +66,26 @@
     (-> state
         (assoc-in [:ppu :write-address-low] 0)
         (assoc-in [:ppu :write-address-high] 0)
+        (assoc-in [:ppu :write-started] false)
         (assoc :memory updated-memory))))
+
+(defn write-register-address [state byte]
+  (let [write-started (get-write-started state)]
+    (cond-> state
+      write-started (assoc-in [:ppu :write-address-low] byte)
+      (not write-started) (assoc-in [:ppu :write-address-high] byte))))
+
+(defn write-register-data [state byte]
+  (let [memory (get-memory state)
+        write-low (get-in state [:ppu :write-address-low])
+        write-high (get-in state [:ppu :write-address-high])
+        address (arith/make-address write-low write-high)
+        ;; TODO make this dependent $2000 bit 2
+        [next-high next-low] (arith/address->bytes (inc address))]
+    (-> state
+        (assoc :memory (memory/ppu-write memory address byte))
+        (assoc-in [:ppu :write-address-low] next-low)
+        (assoc-in [:ppu :write-address-high] next-high))))
 
 (defn get-ppu-mask [state]
   (memory/ppu-read (get-memory state) 0x2001))

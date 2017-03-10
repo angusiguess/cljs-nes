@@ -35,6 +35,7 @@
          :line 0
          :write-address-low 0
          :write-address-high 0
+         :write-started false
          :nmi-enable true}})
 
 (defn init-vectors [state]

@@ -54,6 +54,12 @@
 (defn ppu-status-read? [{:keys [resolved-address] :as op}]
   (= resolved-address 0x2002))
 
+(defn ppu-address-write? [{:keys [resolved-address] :as op}]
+  (= resolved-address 0x2006))
+
+(defn ppu-data-write? [{:keys [resolved-address] :as op}]
+  (= resolved-address 0x2007))
+
 ;; Stack Manipulation
 
 
@@ -254,7 +260,7 @@
 (defmethod address :immediate [state op]
   (let [pc (get-pc state)
         memory (get-memory state)]
-    (assoc op :resolved-arg (memory/cpu-read state (inc pc)))))
+    (assoc op :resolved-arg (memory/cpu-read memory (inc pc)))))
 
 (defmethod address :zero [state op]
   (let [pc (get-pc state)
@@ -826,28 +832,31 @@
                          {:keys [cycles resolved-address bytes-read] :as op}]
   (let [memory (get-memory state)
         a (get-a state)]
-    (-> state
-        (set-ticks! cycles)
-        (advance-pc bytes-read)
-        (write-memory resolved-address a))))
+    (cond-> state
+        (ppu-address-write? op) (ppu/write-register-address a)
+        true (set-ticks! cycles)
+        true (advance-pc bytes-read)
+        true (write-memory resolved-address a))))
 
 (defmethod exec-op :stx [state
                          {:keys [cycles resolved-address bytes-read] :as op}]
   (let [memory (get-memory state)
         x (get-x state)]
-    (-> state
-        (set-ticks! cycles)
-        (advance-pc bytes-read)
-        (write-memory resolved-address x))))
+    (cond-> state
+      (ppu-address-write? op) (ppu/write-register-address x)
+      true (set-ticks! cycles)
+      true (advance-pc bytes-read)
+      true (write-memory resolved-address x))))
 
 (defmethod exec-op :sty [state
                          {:keys [cycles resolved-address bytes-read] :as op}]
   (let [memory (get-memory state)
         y (get-y state)]
-    (-> state
-        (set-ticks! cycles)
-        (advance-pc bytes-read)
-        (write-memory resolved-address y))))
+    (cond-> state
+      (ppu-address-write? op) (ppu/write-register-address y)
+      true (set-ticks! cycles)
+      true (advance-pc bytes-read)
+      true (write-memory resolved-address y))))
 
 (defmethod exec-op :tax [state
                          {:keys [cycles resolved-address bytes-read] :as op}]
