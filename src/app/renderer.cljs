@@ -6,6 +6,7 @@
             [cljsnes.spec :as spec]
             [clojure.pprint :as pprint]
             [cljsnes.cpu :as cpu]
+            [cljsnes.display :as display]
             [cljsnes.emulator :as emulator]
             [cljsnes.assembler :as assembler]
             [cljsnes.cartridge :as cartridge]
@@ -14,6 +15,15 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]))
 
 (enable-console-print!)
+
+(defn make-buffer [colour]
+  (let [row (into [] (repeat 257 colour))]
+    (into [] (repeat 225 row))))
+
+(def buffer (r/atom {:front (make-buffer 0x02)
+                     :back (make-buffer 0x15)}))
+
+(def front (r/cursor buffer [:front]))
 
 (def ppu-cycles (r/cursor state/state [:ppu :cycle]))
 
@@ -24,6 +34,16 @@
 (def zero-flag (r/cursor state/state [:cpu :z]))
 
 (defonce stop-chan (a/chan))
+
+(defn swap-buffers []
+  (let [{:keys [front back]} @buffer]
+    (swap! buffer #(assoc % :back front
+                          :front back))))
+
+(defn swap-button []
+  [:div [:input {:type "button"
+                 :value "Swap buffer!"
+                 :on-click #(swap-buffers)}]])
 
 (defn init-button []
   [:div [:input {:type "button"
@@ -81,18 +101,28 @@
      [:p "Stack Pointer: " @s]
      [:z "Zero? " @z]]))
 
+(defn display-component []
+  @front
+  (when-let [elem (.getElementById js/document "display")]
+    (let [context (.getContext elem "2d")]
+      (display/render-frame @front context)))
+  [:div
+   [:canvas {:width 256 :height 224 :id :display}]])
+
 (defn container []
   [:div
-   (init-button)
-   (step-button)
-   (save-state)
-   (load-state)
-   (run-button)
-   (stop-button)
-   (ppu-cycle)
-   (cpu-cycle)
-   (cpu-pc)
-   (cpu-registers)])
+   (display-component)
+   (swap-button)
+   #_(init-button)
+   #_(step-button)
+   #_(save-state)
+   #_(load-state)
+   #_(run-button)
+   #_(stop-button)
+   #_(ppu-cycle)
+   #_(cpu-cycle)
+   #_(cpu-pc)
+   #_(cpu-registers)])
 
 (defn init []
   (r/render-component [container]
