@@ -64,6 +64,9 @@
         v-cleared (bit-and 0x0F status)
         updated-memory (memory/ppu-write memory 0x2000 v-cleared)]
     (-> state
+        ;; TODO do we need these?
+        #_(assoc-in [:ppu :scroll-y] 0)
+        #_(assoc-in [:ppu :scroll-x] 0)
         (assoc-in [:ppu :write-address-low] 0)
         (assoc-in [:ppu :write-address-high] 0)
         (assoc-in [:ppu :write-started] false)
@@ -74,6 +77,12 @@
     (cond-> state
       write-started (assoc-in [:ppu :write-address-low] byte)
       (not write-started) (assoc-in [:ppu :write-address-high] byte))))
+
+(defn write-register-scroll [state byte]
+  (let [write-started (get-write-started state)]
+    (cond-> state
+      write-started (assoc-in [:ppu :scroll-y] byte)
+      (not write-started) (assoc-in [:ppu :scroll-x] byte))))
 
 (defn write-register-data [state byte]
   (let [memory (get-memory state)
@@ -86,6 +95,11 @@
         (assoc :memory (memory/ppu-write memory address byte))
         (assoc-in [:ppu :write-address-low] next-low)
         (assoc-in [:ppu :write-address-high] next-high))))
+
+(defn get-vram-address [state]
+  (let [vram-low (get-in state [:ppu :write-address-low])
+        vram-high (get-in state [:ppu :write-address-high])]
+    (arith/make-address vram-low vram-high)))
 
 (defn get-ppu-mask [state]
   (memory/ppu-read (get-memory state) 0x2001))
@@ -146,6 +160,10 @@
   (or (visible-line line)
       (= 261 line)))
 
+(def render-and-fetch? (comp fetch-cycle render-line))
+
+(defn do-fetch [state cycle])
+
 (defn tick! [state]
   (cond-> state
     (not (cycle-wrap? state)) inc-cycle
@@ -159,7 +177,9 @@
       (assoc :interrupt :nmi)))
 
 (defn step [state]
-  (cond-> state
-    true tick!
-    (v-blank? state) trigger-vblank!
-    (clear-vblank? state) clear-vblank!))
+  (let [cycle (get-cycle state)]
+    (cond-> state
+      true tick!
+      (render-and-fetch? cycle) (do-fetch cycle)
+      (v-blank? state) trigger-vblank!
+      (clear-vblank? state) clear-vblank!)))
