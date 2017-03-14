@@ -87,12 +87,44 @@
   (is (cpu/ppu-status-read? {:resolved-address 0x2002}))
   (is (false? (cpu/ppu-status-read? {}))))
 
+(deftest control-write
+  (let [state {:memory (memory/make-nrom [[]] [[]] [[]] [[]] false)
+               :ppu {:t 0}}]
+    (is (cpu/ppu-control-write? {:resolved-address 0x2000}))
+    (is (= 3072 (get-in (ppu/write-control state 0xFF) [:ppu :t])))))
+
 (deftest ppu-read-status
   (let [state {:memory (memory/make-nrom [[]] [[]] [[]] [[]] false)
                :ppu {:write-address-low 0xBB
-                     :write-address-high 0xCC}}
+                     :write-address-high 0xCC
+                     :w true}}
         after-read (ppu/read-status state)]
-    (is (zero? (get-in after-read [:ppu :write-address-low])))
-    (is (zero? (get-in after-read [:ppu :write-address-high])))))
+    (is (= false (get-in after-read [:ppu :w])))))
+
+(deftest ppu-write-scroll
+  (let [state {:memory (memory/make-nrom [[]] [[]] [[]] [[]] false)
+               :ppu {:t 0
+                     :x 0
+                     :w false}}
+        first-write (ppu/write-register-scroll state 0xFF)
+        second-write (ppu/write-register-scroll first-write 0xFF)]
+    (is (get-in first-write [:ppu :w]))
+    (is (= 0x07 (get-in first-write [:ppu :x])))
+    (is (= 31 (get-in first-write [:ppu :t])))
+    (is (not (get-in second-write [:ppu :w])))
+    (is (= 2r111001111111111 (get-in second-write [:ppu :t])))))
+
+(deftest ppu-write-address
+  (let [state {:memory (memory/make-nrom [[]] [[]] [[]] [[]] false)
+               :ppu {:t 0
+                     :x 0
+                     :w false}}
+        first-write (ppu/write-register-address state 0xFF)
+        second-write (ppu/write-register-address first-write 0xFF)]
+    (is (get-in first-write [:ppu :w]))
+    (is (= 2r011111100000000 (get-in first-write [:ppu :t])))
+    (is (not (get-in second-write [:ppu :w])))
+    (is (= 2r011111111111111 (get-in second-write [:ppu :t])))
+    (is (= 2r011111111111111 (get-in second-write [:ppu :v])))))
 
 (run-tests)

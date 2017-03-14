@@ -51,6 +51,9 @@
 
 ;; Special Reads
 
+(defn ppu-control-write? [{:keys [resolved-address] :as op}]
+  (= resolved-address 0x2000))
+
 (defn ppu-status-read? [{:keys [resolved-address] :as op}]
   (= resolved-address 0x2002))
 
@@ -836,6 +839,7 @@
   (let [memory (get-memory state)
         a (get-a state)]
     (cond-> state
+      (ppu-control-write? op) (ppu/write-control a)
       (ppu-scroll-write? op) (ppu/write-register-scroll a)
       (ppu-data-write? op) (ppu/write-register-data a)
       (ppu-address-write? op) (ppu/write-register-address a)
@@ -848,6 +852,7 @@
   (let [memory (get-memory state)
         x (get-x state)]
     (cond-> state
+      (ppu-control-write? op) (ppu/write-control x)
       (ppu-scroll-write? op) (ppu/write-register-scroll x)
       (ppu-data-write? op) (ppu/write-register-data x)
       (ppu-address-write? op) (ppu/write-register-address x)
@@ -860,6 +865,7 @@
   (let [memory (get-memory state)
         y (get-y state)]
     (cond-> state
+      (ppu-control-write? op) (ppu/write-control y)
       (ppu-scroll-write? op) (ppu/write-register-scroll y)
       (ppu-data-write? op) (ppu/write-register-data y)
       (ppu-address-write? op) (ppu/write-register-address y)
