@@ -187,15 +187,12 @@
 
 (defn write-register-data [state byte]
   (let [memory (get-memory state)
-        write-low (get-in state [:ppu :write-address-low])
-        write-high (get-in state [:ppu :write-address-high])
-        address (arith/make-address write-low write-high)
-        ;; TODO make this dependent $2000 bit 2
-        [next-high next-low] (arith/address->bytes (inc address))]
-    (-> state
-        (assoc :memory (memory/ppu-write memory address byte))
-        (assoc-in [:ppu :write-address-low] next-low)
-        (assoc-in [:ppu :write-address-high] next-high))))
+        address (get-v state)
+        increment-y (-> memory (memory/ppu-read 0x2000) (bit-test 3))]
+    (cond-> state
+      true (assoc :memory (memory/ppu-write memory address byte))
+      increment-y (update-in [:ppu :v] + 32)
+      (not increment-y) (update-in [:ppu :v] inc))))
 
 (defn get-vram-address [state]
   (let [vram-low (get-in state [:ppu :write-address-low])

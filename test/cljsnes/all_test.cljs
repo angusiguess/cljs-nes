@@ -127,4 +127,15 @@
     (is (= 2r011111111111111 (get-in second-write [:ppu :t])))
     (is (= 2r011111111111111 (get-in second-write [:ppu :v])))))
 
+(deftest ppu-write-data
+  (let [state {:memory (memory/make-nrom [[]] [[]] [[]] [[]] false)
+               :ppu {:t 0
+                     :v 0x2009
+                     :x 0
+                     :w false}}
+        first-write (ppu/write-register-data state 0xFF)
+        memory (get first-write :memory)]
+    (is (= 0x200A (get-in first-write [:ppu :v])))
+    (is (= 0xFF (memory/ppu-read memory 0x2009)))))
+
 (run-tests)
