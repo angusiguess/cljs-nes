@@ -194,13 +194,26 @@
       increment-y (update-in [:ppu :v] + 32)
       (not increment-y) (update-in [:ppu :v] inc))))
 
-(defn get-vram-address [state]
-  (let [vram-low (get-in state [:ppu :write-address-low])
-        vram-high (get-in state [:ppu :write-address-high])]
-    (arith/make-address vram-low vram-high)))
-
 (defn get-ppu-mask [state]
   (memory/ppu-read (get-memory state) 0x2001))
+
+(defn- switch-vertical-nametable [v]
+  (bit-and 0xFFFF (bit-xor v 0x0800)))
+
+(defn- apply-coarse-y [v y]
+  (bit-or
+   (bit-and v (bit-and 0xFFFF (bit-not 0x03E0)))
+   (bit-shift-left y 5)))
+
+(defn increment-y-component [v]
+  ;; If fine Y < 7, we'll increment it
+  (let [coarse-y (bit-shift-right (bit-and v 0x03E0) 5)]
+    (cond (not= (bit-and v 0x7000) 0x7000) (+ v 0x1000)
+          (= 29 coarse-y) (-> v
+                              switch-vertical-nametable
+                              (apply-coarse-y 0))
+          (= 31 coarse-y) (apply-coarse-y v 0)
+          :else (apply-coarse-y v (inc coarse-y)))))
 
 (defn background-enabled? [state]
   (let [ppu-mask (get-ppu-mask state)]
