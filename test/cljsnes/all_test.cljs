@@ -138,4 +138,13 @@
     (is (= 0x200A (get-in first-write [:ppu :v])))
     (is (= 0xFF (memory/ppu-read memory 0x2009)))))
 
+(deftest coarse-x
+  (let [v 0]
+    (testing "regular increment"
+      (let [first-increment (ppu/coarse-x-increment v)]
+        (is (= 1 first-increment))))
+    (testing "tile increment"
+      (let [tile-increment (ppu/coarse-x-increment 31)]
+        (is (= 1024 tile-increment))))))
+
 (run-tests)

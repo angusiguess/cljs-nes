@@ -215,6 +215,34 @@
           (= 31 coarse-y) (apply-coarse-y v 0)
           :else (apply-coarse-y v (inc coarse-y)))))
 
+(defn- zero-coarse-x [v]
+  (bit-and 0xFFFF (bit-and v (bit-not 0x001F))))
+
+(defn- switch-horizontal-nametable [v]
+  (bit-and 0xFFFF (bit-xor 0x0400 v)))
+
+(defn coarse-x-increment [v]
+  (let [coarse-x (bit-and 0x001F v)]
+    (if (= 31 coarse-x) (-> v zero-coarse-x switch-horizontal-nametable)
+        (inc v))))
+
+(defn fetch-name-table-byte [state]
+  (let [v (get-v state)
+        memory (get-memory state)
+        address (bit-or 0x2000 (bit-and v 0x0FFF))]
+    (assoc-in state [:memory :name-table-byte] (memory/ppu-read memory address))))
+
+(defn fetch-attribute-table-byte [state]
+  (let [v (get-v state)
+        memory (get-memory state)
+        address (bit-or 0x23C0
+                        (bit-and 0x0C00 v)
+                        (bit-and (bit-shift-right v 4) 0x38)
+                        (bit-and (bit-shift-right v 2) 0x07))
+        shift (bit-or (bit-and 0x04 (bit-shift-right v 4))
+                      (bit-and 0x02 v))]
+    (assoc-in state [:memory :attribute-table-byte] )))
+
 (defn background-enabled? [state]
   (let [ppu-mask (get-ppu-mask state)]
     (bit-test ppu-mask 3)))
