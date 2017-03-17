@@ -111,18 +111,18 @@
 
 (defn container []
   [:div
-   (display-component)
-   (swap-button)
-   #_(init-button)
-   #_(step-button)
-   #_(save-state)
-   #_(load-state)
-   #_(run-button)
-   #_(stop-button)
-   #_(ppu-cycle)
-   #_(cpu-cycle)
-   #_(cpu-pc)
-   #_(cpu-registers)])
+   #_(display-component)
+   #_(swap-button)
+   (init-button)
+   (step-button)
+   (save-state)
+   (load-state)
+   (run-button)
+   (stop-button)
+   (ppu-cycle)
+   (cpu-cycle)
+   (cpu-pc)
+   (cpu-registers)])
 
 (defn init []
   (r/render-component [container]

@@ -43,6 +43,28 @@
 (defn get-line [state]
   (get-in state [:ppu :line]))
 
+(defn get-nametable-byte [state]
+  (get-in state [:ppu :nametable-byte]))
+
+(defn get-low-tile-byte [state]
+  (get-in state [:ppu :low-tile-byte]))
+
+(defn get-high-tile-byte [state]
+  (get-in state [:ppu :high-tile-byte]))
+
+(defn get-attribute-table-byte [state]
+  (get-in state [:ppu :attribute-table-byte]))
+
+(defn copy-y! [state]
+  (let [v (get-v state)]
+    (assoc-in state [:ppu :v] (bit-or (bit-and 0x841F v)
+                                      (bit-and 0x7BE0 v)))))
+
+(defn copy-x! [state]
+  (let [v (get-v state)]
+    (assoc-in state [:ppu :v] (bit-or (bit-and v 0xFBE0)
+                                      (bit-and v 0x041F)))))
+
 (defn inc-line [state]
   (update-in state [:ppu :line] inc))
 
@@ -59,6 +81,16 @@
   (-> state
       (assoc-in [:ppu :cycle] 0)
       (update-in [:ppu :line] inc)))
+
+(defn get-flag-background-table [state]
+  (let [memory (get-memory state)
+        register (memory/ppu-read memory 0x2000)]
+    (if (bit-test register 4) 1 0)))
+
+(defn get-flag-background-enabled [state]
+  (let [memory (get-memory state)
+        register (memory/ppu-read memory 0x2001)]
+    (bit-test register 3)))
 
 (defn get-write-started [state]
   (get-in state [:ppu :write-started]))
@@ -226,11 +258,11 @@
     (if (= 31 coarse-x) (-> v zero-coarse-x switch-horizontal-nametable)
         (inc v))))
 
-(defn fetch-name-table-byte [state]
+(defn fetch-nametable-byte [state]
   (let [v (get-v state)
         memory (get-memory state)
         address (bit-or 0x2000 (bit-and v 0x0FFF))]
-    (assoc-in state [:memory :name-table-byte] (memory/ppu-read memory address))))
+    (assoc-in state [:memory :nametable-byte] (memory/ppu-read memory address))))
 
 (defn fetch-attribute-table-byte [state]
   (let [v (get-v state)
@@ -240,8 +272,54 @@
                         (bit-and (bit-shift-right v 4) 0x38)
                         (bit-and (bit-shift-right v 2) 0x07))
         shift (bit-or (bit-and 0x04 (bit-shift-right v 4))
-                      (bit-and 0x02 v))]
-    (assoc-in state [:memory :attribute-table-byte] )))
+                      (bit-and 0x02 v))
+        table-byte (bit-shift-left (bit-and
+                                    (bit-shift-right (memory/ppu-read memory address) shift)
+                                    3)
+                                   2)]
+    (assoc-in state [:ppu :attribute-table-byte] table-byte)))
+
+(defn fetch-low-tile-byte [state]
+  (let [v (get-v state)
+        memory (get-memory state)
+        fine-y (bit-and (bit-shift-right v 12) 7)
+        tile (get-nametable-byte state)
+        background-table (get-flag-background-table state)
+        address (+ (* 0x1000 background-table)
+                   (* tile 16)
+                   fine-y)]
+    (assoc-in state [:ppu :low-tile-byte] (memory/ppu-read memory address))))
+
+(defn fetch-high-tile-byte [state]
+  (let [v (get-v state)
+        memory (get-memory state)
+        fine-y (bit-and (bit-shift-right v 12) 7)
+        tile (get-nametable-byte state)
+        background-table (get-flag-background-table state)
+        address (+ (* 0x1000 background-table)
+                   (* tile 16)
+                   fine-y)]
+    (assoc-in state [:ppu :low-tile-byte] (memory/ppu-read memory (+ 8 address)))))
+
+(defn store-tile-data [state]
+  (let [a (get-attribute-table-byte state)
+        [data low high] (loop [i 0
+                               tile-data 0x0
+                               low-tile-byte (get-low-tile-byte state)
+                               high-tile-byte (get-high-tile-byte state)]
+                          (if (= 7 i) [tile-data low-tile-byte high-tile-byte]
+                              (let [p1 (bit-shift-right (bit-and low-tile-byte 0x80) 7)
+                                    p2 (bit-shift-right (bit-and high-tile-byte 0x80) 6)]
+                                (recur (inc i)
+                                       (-> tile-data
+                                           (bit-shift-left 4)
+                                           (bit-or a p1 p2))
+                                       (bit-shift-left low-tile-byte 1)
+                                       (bit-shift-left high-tile-byte 1)))))]
+    (-> state
+        (assoc-in [:ppu :tile-data] data)
+        (assoc-in [:ppu :low-tile-byte] low)
+        (assoc-in [:ppu :high-tile-byte] high))))
 
 (defn background-enabled? [state]
   (let [ppu-mask (get-ppu-mask state)]
@@ -314,6 +392,32 @@
   (-> state
       set-vblank!
       (assoc :interrupt :nmi)))
+
+(defn apply-fetch [state cycle]
+  (case (mod cycle 8)
+    ;; gross
+    0 (-> store-tile-data
+          (update-in state [:ppu :v] coarse-x-increment))
+    1 (fetch-nametable-byte state)
+    3 (fetch-attribute-table-byte state)
+    5 (fetch-low-tile-byte state)
+    7 (fetch-high-tile-byte state)))
+
+(defn render-background [state]
+  ;; currently just for bg
+  (let [line (get-line state)
+        cycle (get-cycle state)]
+   (if (get-flag-background-enabled state)
+     (cond-> state
+       ;; TODO
+       :todo-bg-pixel identity
+       (and (render-line line)
+            (fetch-cycle cycle)) (apply-fetch cycle)
+       (and (= line 261)
+            (<= 280 cycle 304)) copy-y!
+       (= 256 cycle) (update-in [:ppu :v] increment-y-component)
+       (= 257 cycle) copy-x!)
+     state)))
 
 (defn step [state]
   (let [cycle (get-cycle state)]
