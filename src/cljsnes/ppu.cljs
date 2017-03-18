@@ -57,6 +57,9 @@
 (defn get-attribute-table-byte [state]
   (get-in state [:ppu :attribute-table-byte]))
 
+(defn get-tile-data [state]
+  (get-in state [:ppu :tile-data]))
+
 (defn copy-y! [state]
   (let [v (get-v state)]
     (assoc-in state [:ppu :v] (bit-or (bit-and 0x841F v)
@@ -406,6 +409,15 @@
     5 (fetch-low-tile-byte state)
     7 (fetch-high-tile-byte state)
     state))
+
+(defn background-pixel [state]
+  (if (get-flag-background-enabled state)
+    (let [tile-data (get-tile-data state)
+          x (get-x state)
+          shift-val (* 4 (- 7 x))]
+      (-> tile-data
+          (bit-shift-right shift-val)
+          (bit-and 0x0F)))))
 
 (defn render-background [state]
   ;; currently just for bg
