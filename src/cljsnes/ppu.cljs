@@ -38,7 +38,9 @@
   (get-in state [:ppu :w]))
 
 (defn get-memory [state]
-  (get state :memory))
+  (let [memory (get state :memory)]
+    (assert memory)
+    (get state :memory)))
 
 (defn get-line [state]
   (get-in state [:ppu :line]))
@@ -396,12 +398,14 @@
 (defn apply-fetch [state cycle]
   (case (mod cycle 8)
     ;; gross
-    0 (-> store-tile-data
-          (update-in state [:ppu :v] coarse-x-increment))
+    0 (-> state
+          store-tile-data
+          (update-in [:ppu :v] coarse-x-increment))
     1 (fetch-nametable-byte state)
     3 (fetch-attribute-table-byte state)
     5 (fetch-low-tile-byte state)
-    7 (fetch-high-tile-byte state)))
+    7 (fetch-high-tile-byte state)
+    state))
 
 (defn render-background [state]
   ;; currently just for bg
@@ -423,5 +427,6 @@
   (let [cycle (get-cycle state)]
     (cond-> state
       true tick!
+      true render-background
       (v-blank? state) trigger-vblank!
       (clear-vblank? state) clear-vblank!)))
