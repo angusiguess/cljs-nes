@@ -417,7 +417,14 @@
           shift-val (* 4 (- 7 x))]
       (-> tile-data
           (bit-shift-right shift-val)
-          (bit-and 0x0F)))))
+          (bit-and 0x0F)))
+    0))
+
+(defn render-pixel [state]
+  (let [x (dec (get-cycle state))
+        y (get-line state)
+        ;; Omit left background later
+        bg (background-pixel state)]))
 
 (defn render-background [state]
   ;; currently just for bg

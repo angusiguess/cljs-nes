@@ -102,7 +102,7 @@
       (cond (<= 0x0000 addr 0x1FFF) (get chr addr)
             (<= 0x2000 addr 0x2007) (get ppu-registers (- addr vram-offset))
             (<= 0x2008 addr 0x2FFF) (get vram (- addr vram-offset))
-            (<= 0x3F00 addr 0x3FFF) (get palette-ram (- addr palette-offset))
+            (<= 0x3F00 addr 0x3FFF) (get palette-ram (mod (- addr palette-offset) 0x20))
             :else (throw (js/Error (pprint/cl-format nil
                                                      "Address ~x out of range" addr))))))
   (ppu-write [_ addr byte]
@@ -144,7 +144,7 @@
                                        vram
                                        mirroring
                                        (assoc palette-ram
-                                              (- addr palette-offset)
+                                              (mod (- addr palette-offset) 0x20)
                                               byte))
         :else (throw (js/Error (pprint/cl-format nil
                                                  "Address ~x out of range" addr)))))))
