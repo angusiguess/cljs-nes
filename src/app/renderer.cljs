@@ -31,9 +31,9 @@
 (defonce stop-chan (a/chan))
 
 (defn swap-buffers []
-  (let [{:keys [front back]} @buffer]
-    (swap! buffer #(assoc % :back front
-                          :front back))))
+  (swap! state/state update :display (fn [{:keys [front back] :as state}]
+                                       (assoc state :front back
+                                              :back front))))
 
 (defn swap-button []
   [:div [:input {:type "button"

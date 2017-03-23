@@ -11,9 +11,12 @@
 
 (defonce save-state (r/atom nil))
 
-(defn make-buffer []
-  (let [row (into [] (repeat 257 0x2A))]
-    (into [] (repeat 225 row))))
+(defn make-buffer
+  ([]
+   (make-buffer 0x00))
+  ([colour]
+   (let [row (into [] (repeat 257 colour))]
+     (into [] (repeat 225 row)))))
 
 (defn init-state [memory]
   {:cpu {:a 0
@@ -41,8 +44,8 @@
          :write-address-high 0
          :write-started false
          :nmi-enable true}
-   :display {:front (make-buffer)
-             :back (make-buffer)}})
+   :display {:front (make-buffer 0x26)
+             :back (make-buffer 0x27)}})
 
 (defn init-vectors [state]
   (let [cpu-mem (get state :memory)]
