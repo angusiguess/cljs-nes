@@ -3,6 +3,8 @@
             [cljs.spec :as s]
             [cljs.pprint :as pprint]
             [cljs.spec.test :as stest]
+            [cljsnes.state :as state]
+            [cljsnes.cartridge :as cart]
             [cljsnes.memory :as memory]
             [cljsnes.arith :as arith]
             [cljsnes.opcodes :as opcodes]
@@ -146,5 +148,16 @@
     (testing "tile increment"
       (let [tile-increment (ppu/coarse-x-increment 31)]
         (is (= 1024 tile-increment))))))
+
+(defn parse-log-entry [line]
+  (let [log-expr #"([A-F0-9]{4})\s+([A-F0-9]{2} [A-F0-9]{2} [A-F0-9]{2}|[A-F0-9]{2} [A-F0-9]{2}|[A-F0-9]{2})\s+"]
+    (re-seq log-expr line)))
+
+(deftest nes-test-rom
+  (let [rom (cart/load-rom "/Users/angusiguess/code/cljsnes/resources/nestest.nes")
+        log (clojure.string/split-lines (cart/read-file-sync "/Users/angusiguess/code/cljsnes/resources/nestest.log"))
+        memory (memory/init-mem rom)
+        state (state/init-vectors (state/init-state memory))]
+    (println (parse-log-entry (first log)))))
 
 (run-tests)

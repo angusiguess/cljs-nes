@@ -16,14 +16,9 @@
 
 (enable-console-print!)
 
-(defn make-buffer [colour]
-  (let [row (into [] (repeat 257 colour))]
-    (into [] (repeat 225 row))))
+(def front (r/cursor state/state [:display :front]))
 
-(def buffer (r/atom {:front (make-buffer 0x02)
-                     :back (make-buffer 0x15)}))
-
-(def front (r/cursor buffer [:front]))
+(def buffer (r/cursor state/state [:display]))
 
 (def ppu-cycles (r/cursor state/state [:ppu :cycle]))
 
@@ -48,7 +43,7 @@
 (defn init-button []
   [:div [:input {:type "button"
                  :value "Init State!"
-                 :on-click #(emulator/init "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")}]])
+                 :on-click #(emulator/init "/Users/angusiguess/Downloads/palette.nes")}]])
 
 (defn step-button []
   [:div [:input {:type "button"
@@ -111,8 +106,8 @@
 
 (defn container []
   [:div
-   #_(display-component)
-   #_(swap-button)
+   (display-component)
+   (swap-button)
    (init-button)
    (step-button)
    (save-state)

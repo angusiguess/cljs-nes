@@ -11,6 +11,10 @@
 
 (defonce save-state (r/atom nil))
 
+(defn make-buffer []
+  (let [row (into [] (repeat 257 0x2A))]
+    (into [] (repeat 225 row))))
+
 (defn init-state [memory]
   {:cpu {:a 0
          :x 0
@@ -36,7 +40,9 @@
          :write-address-low 0
          :write-address-high 0
          :write-started false
-         :nmi-enable true}})
+         :nmi-enable true}
+   :display {:front (make-buffer)
+             :back (make-buffer)}})
 
 (defn init-vectors [state]
   (let [cpu-mem (get state :memory)]

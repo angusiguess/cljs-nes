@@ -38,6 +38,10 @@
 (defn open-file [path]
   (.openSync fs path "r"))
 
+(defn read-file-sync [path]
+  (let []
+    (.readFileSync fs path "utf-8")))
+
 (defn read-file [path]
   (let [fd (open-file path)
         size (-> path

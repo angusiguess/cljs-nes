@@ -39,7 +39,6 @@
 
 (defn get-memory [state]
   (let [memory (get state :memory)]
-    (assert memory)
     (get state :memory)))
 
 (defn get-line [state]
@@ -102,10 +101,14 @@
 
 (defn set-vblank! [state]
   (let [memory (get-memory state)
-        byte (memory/ppu-read memory 0x2002)]
+        byte (memory/ppu-read memory 0x2002)
+        back (get-in state [:display :back])
+        front (get-in state [:display :front])]
     (-> state
         (assoc :memory (memory/ppu-write memory 0x2002 (bit-or 0x70 byte)))
-        (assoc-in [:ppu :vblank] true))))
+        (assoc-in [:ppu :vblank] true)
+        (assoc-in [:display :back] front)
+        (assoc-in [:display :front] back))))
 
 (defn clear-vblank! [state]
   (let [memory (get-memory state)
@@ -423,8 +426,12 @@
 (defn render-pixel [state]
   (let [x (dec (get-cycle state))
         y (get-line state)
+        memory (get-memory state)
         ;; Omit left background later
-        bg (background-pixel state)]))
+        bg (background-pixel state)
+        colour (memory/ppu-read memory
+                                (mod (+ 0x3F00 bg) 64))]
+    (assoc-in state [:display :back y x] colour)))
 
 (defn render-background [state]
   ;; currently just for bg
@@ -433,7 +440,8 @@
    (if (get-flag-background-enabled state)
      (cond-> state
        ;; TODO
-       :todo-bg-pixel identity
+       (and (visible-line line)
+            (visible-cycle cycle)) render-pixel
        (and (render-line line)
             (fetch-cycle cycle)) (apply-fetch cycle)
        (and (= line 261)
