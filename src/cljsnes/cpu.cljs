@@ -962,6 +962,22 @@
                   (println instruction)
                   (exec-op state instruction)))))
 
+(defn log-step [state]
+  (let [pc (get-pc state)
+        memory (get-memory state)
+        op (memory/cpu-read memory pc)
+        instruction (->> (get opcodes/ops op)
+                         (address state))
+        {:keys [bytes-read]} op
+        byte-one (pprint/cl-format nil "~:@(~X~)" (memory/cpu-read memory pc))
+        byte-two (if (<= bytes-read 2) (pprint/cl-format nil "~:@(~X~)" (memory/cpu-read memory (inc pc))) "  ")
+        byte-three (if (<= bytes-read 3) (pprint/cl-format nil "~:@(~X~)" (memory/cpu-read memory (+ 2 pc))) "  ")]
+    (pprint/cl-format nil "~:@(~X~) ~A ~A ~A"
+                      pc
+                      byte-one
+                      byte-two
+                      byte-three)))
+
 (defn step [state]
   (let [pc (get-pc state)
         memory (get-memory state)
