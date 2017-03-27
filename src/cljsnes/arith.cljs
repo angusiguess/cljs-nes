@@ -24,10 +24,15 @@
 (defn inc [x]
   (add x 1))
 
-(defn sub [x y]
-  (let [negated-y (bit-and 0xFF (+ 1 (bit-not y)))
-        carry (if (bit-test diff 8) 0 1)]
-    (add x negated-y)))
+(defn sub
+  ([] [0 0])
+  ([x] [x])
+  ([x y]
+   (let [negated-y (bit-and 0xFF (+ 1 (bit-not y)))]
+     (add x negated-y)))
+  ([x y z]
+   (let [[diff carry] (sub x y)]
+     (sub diff z))))
 
 (defn dec [x]
   (sub x 1))

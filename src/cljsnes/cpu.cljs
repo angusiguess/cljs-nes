@@ -565,11 +565,12 @@
 
 (defmethod exec-op :cpx [state {:keys [cycles bytes-read resolved-arg] :as op}]
   (let [x (get-x state)
-        diff (- x resolved-arg)]
+        [diff carry] (arith/sub x resolved-arg)]
     (cond-> state
       true (set-negative diff)
       true (set-zero diff)
-      (neg? diff) set-carry
+      (<= resolved-arg x) set-carry
+      (< x resolved-arg) clear-carry
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
@@ -819,12 +820,18 @@
 
 (defmethod exec-op :sbc [state {:keys [cycles resolved-arg bytes-read]}]
   (let [a (get-a state)
-        [diff carry] (arith/sub a resolved-arg)]
+        c (get-carry state)
+        [diff _] (arith/add a (bit-and 0xFF (bit-not resolved-arg)) c)
+        carry (bool->bit (<= 0 (- a resolved-arg (- 1 c))))
+        overflow (bool->bit (not= 0 (bit-and (bit-xor a diff)
+                                             (bit-xor (bit-and 0xFF (bit-not resolved-arg)) diff)
+                                             0x80)))]
+    (println diff)
+    (println carry)
     (cond-> state
       true (set-a-to diff)
       true (set-zero diff)
-      (zero? carry) (set-overflow-to 1)
-      (pos? carry) (set-overflow-to 0)
+      true (set-overflow-to overflow)
       true (set-carry-to carry)
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
