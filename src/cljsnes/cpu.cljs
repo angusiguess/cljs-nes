@@ -554,12 +554,12 @@
 
 (defmethod exec-op :cmp [state {:keys [cycles bytes-read resolved-arg] :as op}]
   (let [a (get-a state)
-        diff (- a resolved-arg)]
+        [diff carry] (arith/sub a resolved-arg)]
     (cond-> state
       true (set-negative diff)
       true (set-zero diff)
-      (neg? diff) clear-carry
-      (<= 0 diff) set-carry
+      (<= resolved-arg a) set-carry
+      (< a resolved-arg) clear-carry
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 

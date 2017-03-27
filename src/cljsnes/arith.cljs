@@ -25,10 +25,9 @@
   (add x 1))
 
 (defn sub [x y]
-  (let [diff (- x y)
-        masked-sum (bit-and 255 diff)
+  (let [negated-y (bit-and 0xFF (+ 1 (bit-not y)))
         carry (if (bit-test diff 8) 0 1)]
-    [masked-sum carry]))
+    (add x negated-y)))
 
 (defn dec [x]
   (sub x 1))
