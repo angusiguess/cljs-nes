@@ -575,11 +575,12 @@
 
 (defmethod exec-op :cpy [state {:keys [cycles bytes-read resolved-arg] :as op}]
   (let [y (get-y state)
-        diff (- y resolved-arg)]
+        [diff carry] (arith/sub y resolved-arg)]
     (cond-> state
       true (set-negative diff)
       true (set-zero diff)
-      (neg? diff) set-carry
+      (<= resolved-arg y) set-carry
+      (< y resolved-arg) clear-carry
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
