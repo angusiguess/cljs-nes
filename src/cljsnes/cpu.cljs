@@ -760,9 +760,10 @@
 
 (defmethod exec-op :plp [state {:keys [cycles bytes-read]}]
   (let [[pop popped-state] (pop-8 state)
-        flags (byte->status pop)]
+        adjusted-pop (bit-or 0x20 (bit-and pop 0xEF)) ;; nestest needs this
+        flags (byte->status adjusted-pop)]
     (-> popped-state
-        (merge flags)
+        (update :cpu merge flags)
         (set-ticks! cycles)
         (advance-pc bytes-read))))
 
