@@ -789,13 +789,12 @@
                                  resolved-arg resolved-address] :as op}]
   (let [[shifted carry] (arith/asl resolved-arg)
         c (get-carry state)
-        n (get-negative state)
-        rotated (+ shifted n)
+        rotated (+ shifted c)
         memory (get-memory state)]
     (cond-> state
       (= :accumulator address-mode) (set-a-to rotated)
       (not= :accumulator address-mode) (write-memory resolved-address rotated)
-      true (set-carry-to c)
+      true (set-carry-to carry)
       true (set-zero rotated)
       true (set-negative rotated)
       true (set-ticks! cycles)
