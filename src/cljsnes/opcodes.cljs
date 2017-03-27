@@ -123,10 +123,10 @@
              (make-op 0x41 :eor :indirect-x 2 6)
              (make-op 0x51 :eor :indirect-y 2 5)
              ;; INC official
-             (make-op 0xE6 :eor :zero 2 5)
-             (make-op 0xF6 :eor :zero-x 2 6)
-             (make-op 0xEE :eor :absolute 3 6)
-             (make-op 0xFE :eor :absolute-x 3 7)
+             (make-op 0xE6 :inc :zero 2 5)
+             (make-op 0xF6 :inc :zero-x 2 6)
+             (make-op 0xEE :inc :absolute 3 6)
+             (make-op 0xFE :inc :absolute-x 3 7)
              ;; INX official
              (make-op 0xE8 :inx :implied 1 2)
              ;; INY official
