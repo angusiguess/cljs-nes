@@ -9,11 +9,17 @@
 (s/def ::carry-bit #{0 1})
 
 ;; Some addition fns
-(defn add [x y]
-  (let [sum (+ x y)
-        masked-sum (bit-and 255 sum)
-        carry (if (bit-test sum 8) 1 0)]
-    [masked-sum carry]))
+(defn add
+  ([] [0 0])
+  ([x] [x 0])
+  ([x y]
+   (let [sum (+ x y)
+         masked-sum (bit-and 255 sum)
+         carry (if (bit-test sum 8) 1 0)]
+     [masked-sum carry]))
+  ([x y z]
+   (let [[sum carry] (add x y)]
+     (add sum z))))
 
 (defn inc [x]
   (add x 1))
@@ -41,7 +47,7 @@
         :ret ::address)
 
 (s/fdef add
-        :args (s/cat :x ::byte :y ::byte)
+        :args (s/cat :x (s/? ::byte) :y (s/? ::byte) :z (s/? ::byte))
         :ret (s/cat :sum ::byte :carry ::carry-bit))
 
 (s/fdef inc
