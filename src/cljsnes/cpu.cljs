@@ -937,8 +937,6 @@
   (let [x (get-x state)]
     (cond-> state
       true (assoc-in [:cpu :s] x)
-      true (set-zero x)
-      true (set-negative x)
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
