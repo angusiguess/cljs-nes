@@ -84,7 +84,7 @@
 
 (defn pop-8 [{:keys [cpu memory] :as state}]
   (let [{:keys [s]} cpu
-        to-pop (memory/cpu-read memory (inc (+ 0x100 s)))]
+        to-pop (memory/cpu-read memory (+ 0x100 (inc s)))]
     [to-pop (update-in state [:cpu :s] inc)]))
 
 (s/fdef push-16 :args (s/cat :state ::spec/state :address ::spec/address)
@@ -678,7 +678,7 @@
         return (+ pc bytes-read)
         memory (get-memory state)]
     (-> state
-        (push-16 return)
+        (push-16 (dec return))
         (set-pc-to resolved-address)
         (set-ticks! cycles))))
 
@@ -815,7 +815,7 @@
 (defmethod exec-op :rts [state {:keys [cycles]}]
   (let [[pc state] (pop-16 state)]
     (-> state
-        (set-pc-to pc)
+        (set-pc-to (inc pc))
         (set-ticks! cycles))))
 
 (defmethod exec-op :sbc [state {:keys [cycles resolved-arg bytes-read]}]
