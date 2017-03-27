@@ -796,6 +796,7 @@
                          {:keys [cycles bytes-read address-mode
                                  resolved-arg resolved-address] :as op}]
   (let [[shifted carry] (arith/lsr resolved-arg)
+        c (get-carry state)
         rotated (+ shifted (* 128 c))
         memory (get-memory state)]
     (cond-> state
