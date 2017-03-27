@@ -553,7 +553,8 @@
     (cond-> state
       true (set-negative diff)
       true (set-zero diff)
-      (neg? diff) set-carry
+      (neg? diff) clear-carry
+      (<= 0 diff) set-carry
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
