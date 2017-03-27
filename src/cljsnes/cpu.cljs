@@ -49,6 +49,13 @@
         upper (memory/cpu-read memory (inc address))]
     (arith/make-address lower upper)))
 
+(defn get-address-wrap-upper [memory address]
+  (let [lower-byte address
+        upper-byte (mod (inc address) 0x100)
+        lower (memory/cpu-read memory lower-byte)
+        upper (memory/cpu-read memory upper-byte)]
+    (arith/make-address lower upper)))
+
 ;; Special Reads
 
 (defn ppu-control-write? [{:keys [resolved-address] :as op}]
@@ -338,8 +345,8 @@
         pc (get-pc state)
         x (get-x state)
         address (memory/cpu-read memory (inc pc))
-        offset-address (+ x address)
-        indirect-address (get-address memory offset-address)]
+        offset-address (mod (+ x address) 0x100)
+        indirect-address (get-address-wrap-upper memory offset-address)]
     (assoc op :resolved-arg (memory/cpu-read memory indirect-address)
            :resolved-address indirect-address)))
 
