@@ -401,9 +401,12 @@
       true (set-a-to and-a)
       true (advance-pc bytes-read))))
 
-(defmethod exec-op :asl [state {:keys [cycles bytes-read resolved-arg :as op]}]
-  (let [a (get-a state)
-        [shifted carry] (arith/asl a resolved-arg)]
+(defmethod exec-op :asl [state {:keys [cycles bytes-read
+                                       resolved-arg address-mode :as op]}]
+  (let [to-shift (if (= :accumulator address-mode) (get-a state)
+                     resolved-arg)
+        [shifted carry] (arith/asl to-shift)]
+    (println (pprint/cl-format nil "~X ~X" to-shift shifted))
     (cond-> state
       (ppu-status-read? op) ppu/read-status
       true (set-carry-to carry)
@@ -808,7 +811,7 @@
         status-map (byte->status status)
         [pc state] (pop-16 state)]
     (-> state
-        (merge status-map)
+        (update :cpu merge status-map (merge status-map))
         (set-pc-to pc)
         (set-ticks! cycles))))
 
@@ -985,6 +988,7 @@
     :absolute (cond (get #{:jmp :jsr} fn) (pprint/cl-format nil "$~:@(~4,'0X~)" resolved-address)
                     :else (pprint/cl-format nil "$~:@(~4,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg))
     :implied ""
+    :accumulator "A"
     :relative (pprint/cl-format nil "$~:@(~2,'0X~)" resolved-address)
     :zero (pprint/cl-format nil "$~:@(~2,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg)))
 

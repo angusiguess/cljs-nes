@@ -71,12 +71,11 @@
 
 ;; Logical Shifts
 
-(defn asl ([x offset]
-           (let [shifted (bit-shift-left x offset)
-                 masked (bit-and shifted 255)
-                 carry (if (bit-test shifted 8) 1 0)]
-             [masked carry]))
-  ([x] (asl x 1)))
+(defn asl [x]
+  (let [shifted (bit-shift-left x 1)
+        masked (bit-and shifted 255)
+        carry (if (bit-test shifted 8) 1 0)]
+    [masked carry]))
 
 (s/fdef asl
         :args (s/cat :x ::byte)
