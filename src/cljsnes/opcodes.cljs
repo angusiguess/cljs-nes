@@ -160,7 +160,8 @@
              ;; LSR official
              (make-op 0x4A :lsr :accumulator 1 2)
              (make-op 0x46 :lsr :zero 2 5)
-             (make-op 0x56 :lsr :absolute 3 6)
+             (make-op 0x56 :lsr :zero-x 3 6)
+             (make-op 0x4E :lsr :absolute 3 6)
              (make-op 0x5E :lsr :absolute-x 3 7)
              ;; NOP official
              (make-op 0xEA :nop :implied 1 2)

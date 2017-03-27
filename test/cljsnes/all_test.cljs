@@ -168,5 +168,3 @@
           (println my-line)
           (when (is (= log-line my-line))
             (recur (rest log) (cpu/test-step state) (inc line-no))))))))
-
-(run-tests)

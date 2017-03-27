@@ -43,7 +43,7 @@
 (defn init-button []
   [:div [:input {:type "button"
                  :value "Init State!"
-                 :on-click #(emulator/init "/Users/angusiguess/Downloads/palette.nes")}]])
+                 :on-click #(emulator/init "/Users/angusiguess/Downloads/Super Mario Bros. (Japan, USA).nes")}]])
 
 (defn step-button []
   [:div [:input {:type "button"

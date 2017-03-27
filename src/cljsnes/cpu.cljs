@@ -11,6 +11,7 @@
             [cljs.reader :as reader])
   (:refer-clojure :exclude [and]))
 
+(enable-console-print!)
 
 ;; Memory map for state
 ;; $0000-$07FF  $0800   2KB internal RAM
@@ -988,7 +989,7 @@
     (cond (< 0 ticks) (-> state
                           dec-ticks!
                           inc-cycles!)
-          interrupt (do (handle-interrupt state interrupt))
+          interrupt (handle-interrupt state interrupt)
           :else (do
                   (println instruction)
                   (exec-op state instruction)))))
@@ -1051,7 +1052,6 @@
   (let [pc (get-pc state)
         memory (get-memory state)
         op (memory/cpu-read memory pc)
-        _ (println "OP" op)
         instruction (->> (get opcodes/ops op)
                          (address state))]
     (-> state
