@@ -826,11 +826,10 @@
         overflow (bool->bit (not= 0 (bit-and (bit-xor a diff)
                                              (bit-xor (bit-and 0xFF (bit-not resolved-arg)) diff)
                                              0x80)))]
-    (println diff)
-    (println carry)
     (cond-> state
       true (set-a-to diff)
       true (set-zero diff)
+      true (set-negative diff)
       true (set-overflow-to overflow)
       true (set-carry-to carry)
       true (set-ticks! cycles)
