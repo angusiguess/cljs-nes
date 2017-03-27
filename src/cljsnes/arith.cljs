@@ -51,7 +51,7 @@
 ;; Negative?
 
 (defn neg-byte? [x]
-  (bit-test x 8))
+  (bit-test x 7))
 
 (s/fdef neg-byte?
         :args (s/cat :x nat-int?)
@@ -64,7 +64,7 @@
 (defn asl ([x offset]
            (let [shifted (bit-shift-left x offset)
                  masked (bit-and shifted 255)
-                 carry (if (neg-byte? shifted) 1 0)]
+                 carry (if (bit-test shifted 8) 1 0)]
              [masked carry]))
   ([x] (asl x 1)))
 

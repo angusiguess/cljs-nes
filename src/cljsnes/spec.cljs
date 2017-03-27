@@ -49,7 +49,7 @@
 
 (s/def :cpu/reset ::byte)
 
-(s/def :cpu/status (s/keys :req-un [:cpu/n :cpu/v :cpu/b :cpu/d
+(s/def :cpu/status (s/keys :req-un [:cpu/n :cpu/v :cpu/d
                                     :cpu/i :cpu/z :cpu/c]))
 
 (s/def :state/cpu (s/keys :req-un [:cpu/a :cpu/x :cpu/pc :cpu/s :cpu/c

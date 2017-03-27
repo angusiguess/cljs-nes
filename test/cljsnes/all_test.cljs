@@ -156,6 +156,19 @@
         log (clojure.string/split-lines (cart/read-file-sync "/Users/angusiguess/code/cljsnes/resources/nestest.log"))
         memory (memory/init-mem rom)
         state (assoc-in (state/init-vectors (state/init-state memory)) [:cpu :pc] 0xC000)]
-    (println (cpu/log-step state))))
+    (loop [log log
+           state state
+           line-no 1]
+      (when log
+        (let [log-line (-> log
+                           first
+                           (clojure.string/replace #"CYC:.*$" "")
+                           (clojure.string/split #"\s+"))
+              my-line (clojure.string/split (cpu/log-step state) #"\s+")]
+          (println line-no)
+          (println log-line)
+          (println my-line)
+          (when (is (= log-line my-line))
+            (recur (rest log) (cpu/test-step state) (inc line-no))))))))
 
 (run-tests)

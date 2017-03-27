@@ -109,7 +109,7 @@
 
 (defn status->byte [{:keys [cpu] :as state}]
   (let [{:keys [n v b d i z c]} cpu]
-    (reader/read-string (str "2r" n v "0" b d i z c))))
+    (reader/read-string (str "2r" n v "1" b d i z c))))
 
 (s/fdef byte->status :args (s/cat :byte ::spec/byte)
         :ret :cpu/status)
@@ -128,6 +128,9 @@
 
 (defn get-memory [state]
   (get state :memory))
+
+(defn get-cycles [state]
+  (get-in state [:cpu :cycles]))
 
 (defn set-ticks! [state ticks]
   (assoc-in state [:cpu :ticks] ticks))
@@ -356,7 +359,8 @@
   (let [memory (get-memory state)
         pc (get-pc state)
         offset (memory/cpu-read memory (inc pc))]
-    (assoc op :resolved-arg offset)))
+    (assoc op :resolved-arg offset
+           :resolved-address (+ pc 2 offset))))
 
 (defmethod address :implied [state op]
   (assoc op :resolved-arg nil))
@@ -446,8 +450,8 @@
     (cond-> state
       true (set-ticks! cycles)
       true (set-zero (bit-and a resolved-arg))
-      true (set-overflow-to (bit-test resolved-arg 6))
-      true (set-negative-to (bit-test resolved-arg 7))
+      true (set-overflow-to (bool->bit (bit-test resolved-arg 6)))
+      true (set-negative-to (bool->bit (bit-test resolved-arg 7)))
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :bmi [state
@@ -502,7 +506,7 @@
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
       true (set-ticks! cycles)
-      (zero? v) (advance-pc signed-arg)
+      (zero? v) (advance-pc (+ bytes-read signed-arg))
       (zero? v) inc-ticks!
       (c/and (zero? v) (page-crossed? pc signed-arg)) inc-ticks!
       (pos? v) (advance-pc bytes-read))))
@@ -514,7 +518,7 @@
         signed-arg (arith/unsigned->signed resolved-arg)]
     (cond-> state
       true (set-ticks! cycles)
-      (pos? v) (advance-pc signed-arg)
+      (pos? v) (advance-pc (+ bytes-read signed-arg))
       (pos? v) inc-ticks!
       (c/and (pos? v) (page-crossed? pc signed-arg)) inc-ticks!
       (zero? v) (advance-pc bytes-read))))
@@ -654,11 +658,11 @@
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :jmp [state
-                         {:keys [cycles bytes-read resolved-arg] :as op}]
+                         {:keys [cycles bytes-read resolved-address] :as op}]
   ;; fix weird paging error
   (-> state
       (set-ticks! cycles)
-      (assoc :pc resolved-arg)))
+      (assoc-in [:cpu :pc] resolved-address)))
 
 (defmethod exec-op :jsr [state
                          {:keys [cycles bytes-read resolved-arg
@@ -740,7 +744,7 @@
 
 (defmethod exec-op :php [state {:keys [cycles bytes-read]}]
   (-> state
-      (push-8 (status->byte state))
+      (push-8 (bit-or 0x10 (status->byte state)))
       (set-ticks! cycles)
       (advance-pc bytes-read)))
 
@@ -748,6 +752,8 @@
   (let [[pop popped-state] (pop-8 state)]
     (-> popped-state
         (set-a-to pop)
+        (set-zero pop)
+        (set-negative pop)
         (set-ticks! cycles)
         (advance-pc bytes-read))))
 
@@ -962,21 +968,54 @@
                   (println instruction)
                   (exec-op state instruction)))))
 
+(defn parse-address [{:keys [address-mode resolved-arg resolved-address fn] :as op}]
+  (case address-mode
+    :immediate (pprint/cl-format nil "#$~:@(~2,'0X~)" resolved-arg)
+    :absolute (if (get #{:jmp :jsr} fn) (pprint/cl-format nil "$~:@(~4,'0X~)" resolved-address)
+                  (pprint/cl-format nil "$~:@(~4,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg))
+    :implied ""
+    :relative (pprint/cl-format nil "$~:@(~2,'0X~)" resolved-address)
+    :zero (pprint/cl-format nil "$~:@(~2,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg)))
+
+(defn cpu-state [state]
+  (let [a (get-a state)
+        x (get-x state)
+        y (get-y state)
+        p (status->byte state)
+        sp (get-sp state)]
+    (pprint/cl-format nil "A:~:@(~2,'0X~) X:~:@(~2,'0X~) Y:~:@(~2,'0X~) P:~:@(~2,'0X~) SP:~:@(~2,'0X~)" a x y p sp)))
+
 (defn log-step [state]
   (let [pc (get-pc state)
         memory (get-memory state)
         op (memory/cpu-read memory pc)
         instruction (->> (get opcodes/ops op)
                          (address state))
-        {:keys [bytes-read]} op
-        byte-one (pprint/cl-format nil "~:@(~X~)" (memory/cpu-read memory pc))
-        byte-two (if (<= bytes-read 2) (pprint/cl-format nil "~:@(~X~)" (memory/cpu-read memory (inc pc))) "  ")
-        byte-three (if (<= bytes-read 3) (pprint/cl-format nil "~:@(~X~)" (memory/cpu-read memory (+ 2 pc))) "  ")]
-    (pprint/cl-format nil "~:@(~X~) ~A ~A ~A"
+        {:keys [bytes-read]} instruction
+        byte-one (pprint/cl-format nil "~:@(~2,'0X~)" (memory/cpu-read memory pc))
+        byte-two (if (<= 2 bytes-read) (pprint/cl-format nil "~:@(~2,'0X~)" (memory/cpu-read memory (inc pc))) "  ")
+        byte-three (if (<= 3 bytes-read) (pprint/cl-format nil "~:@(~2,'0X~)" (memory/cpu-read memory (+ 2 pc))) "  ")
+        opcode (pprint/cl-format nil "~:@(~A~)" (name (:fn instruction)))
+        address (parse-address instruction)
+        cpu-state (cpu-state state)]
+    (pprint/cl-format nil "~:@(~4,'0X~) ~A ~A ~A ~A ~A ~A"
                       pc
                       byte-one
                       byte-two
-                      byte-three)))
+                      byte-three
+                      opcode
+                      address
+                      cpu-state)))
+
+(defn test-step [state]
+  (let [pc (get-pc state)
+        memory (get-memory state)
+        op (memory/cpu-read memory pc)
+        instruction (->> (get opcodes/ops op)
+                         (address state))]
+    (-> state
+        (tick! instruction)
+        (set-ticks! 0))))
 
 (defn step [state]
   (let [pc (get-pc state)
