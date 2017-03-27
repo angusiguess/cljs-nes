@@ -600,7 +600,7 @@
                          {:keys [cycles bytes-read
                                  resolved-arg resolved-address] :as op}]
   (let [memory (get-memory state)
-        [_ decced] (arith/dec resolved-arg)]
+        [decced _] (arith/dec resolved-arg)]
     (cond-> state
       true (write-memory resolved-address decced)
       true (set-zero decced)

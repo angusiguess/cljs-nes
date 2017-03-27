@@ -149,8 +149,6 @@
       (let [tile-increment (ppu/coarse-x-increment 31)]
         (is (= 1024 tile-increment))))))
 
-
-
 (deftest nes-test-rom
   (let [rom (cart/load-rom "/Users/angusiguess/code/cljsnes/resources/nestest.nes")
         log (clojure.string/split-lines (cart/read-file-sync "/Users/angusiguess/code/cljsnes/resources/nestest.log"))
