@@ -376,14 +376,14 @@
 (defmethod exec-op :adc [state {:keys [cycles bytes-read resolved-arg] :as op}]
   (let [a (get-a state)
         c (get-carry state)
-        [sum carry] (arith/add a resolved-arg c)]
-    (println (pprint/cl-format nil "~X" a))
-    (println (pprint/cl-format nil "~X" resolved-arg))
-    (println (pprint/cl-format nil "~X" sum))
+        [sum carry] (arith/add a resolved-arg c)
+        overflow (bool->bit (not= 0 (bit-and (bit-xor a sum)
+                                             (bit-xor resolved-arg sum)
+                                             0x80)))]
     (cond-> state
       (ppu-status-read? op) ppu/read-status
       true (set-a-to sum)
-      true (set-overflow-to (bool->bit (not= (arith/neg-byte? sum) (arith/neg-byte? a))))
+      true (set-overflow-to overflow)
       true (set-carry-to carry)
       true (set-zero sum)
       true (set-negative sum)

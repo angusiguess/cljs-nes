@@ -14,7 +14,7 @@
   ([x] [x 0])
   ([x y]
    (let [sum (+ x y)
-         masked-sum (bit-and 255 sum)
+         masked-sum (bit-and 0xFF sum)
          carry (if (bit-test sum 8) 1 0)]
      [masked-sum carry]))
   ([x y z]
