@@ -76,7 +76,7 @@
 (defn push-8 [{:keys [cpu memory] :as state} byte]
   (let [{:keys [s]} cpu]
     (-> state
-        (assoc :memory (memory/cpu-write memory s byte))
+        (assoc :memory (memory/cpu-write memory (+ 0x100 s) byte))
         (update-in [:cpu :s] dec))))
 
 (s/fdef pop-8 :args (s/cat :state ::spec/state)
@@ -84,7 +84,7 @@
 
 (defn pop-8 [{:keys [cpu memory] :as state}]
   (let [{:keys [s]} cpu
-        to-pop (memory/cpu-read memory (inc s))]
+        to-pop (memory/cpu-read memory (inc (+ 0x100 s)))]
     [to-pop (update-in state [:cpu :s] inc)]))
 
 (s/fdef push-16 :args (s/cat :state ::spec/state :address ::spec/address)
@@ -979,11 +979,11 @@
                   (println instruction)
                   (exec-op state instruction)))))
 
-(defn parse-address [{:keys [address-mode resolved-arg resolved-address fn] :as op}]
+(defn parse-address [state {:keys [address-mode resolved-arg resolved-address fn] :as op}]
   (case address-mode
     :immediate (pprint/cl-format nil "#$~:@(~2,'0X~)" resolved-arg)
-    :absolute (if (get #{:jmp :jsr} fn) (pprint/cl-format nil "$~:@(~4,'0X~)" resolved-address)
-                  (pprint/cl-format nil "$~:@(~4,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg))
+    :absolute (cond (get #{:jmp :jsr} fn) (pprint/cl-format nil "$~:@(~4,'0X~)" resolved-address)
+                    :else (pprint/cl-format nil "$~:@(~4,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg))
     :implied ""
     :relative (pprint/cl-format nil "$~:@(~2,'0X~)" resolved-address)
     :zero (pprint/cl-format nil "$~:@(~2,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg)))
@@ -1007,7 +1007,7 @@
         byte-two (if (<= 2 bytes-read) (pprint/cl-format nil "~:@(~2,'0X~)" (memory/cpu-read memory (inc pc))) "  ")
         byte-three (if (<= 3 bytes-read) (pprint/cl-format nil "~:@(~2,'0X~)" (memory/cpu-read memory (+ 2 pc))) "  ")
         opcode (pprint/cl-format nil "~:@(~A~)" (name (:fn instruction)))
-        address (parse-address instruction)
+        address (parse-address state instruction)
         cpu-state (cpu-state state)]
     (pprint/cl-format nil "~:@(~4,'0X~) ~A ~A ~A ~A ~A ~A"
                       pc
