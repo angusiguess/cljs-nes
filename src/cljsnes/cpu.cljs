@@ -614,8 +614,8 @@
         [decced _] (arith/dec y)]
     (cond-> state
       true (set-y-to decced)
-      true (set-zero (dec y))
-      true (set-negative (dec y))
+      true (set-zero decced)
+      true (set-negative decced)
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
