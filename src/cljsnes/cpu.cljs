@@ -337,9 +337,9 @@
   (let [memory (get-memory state)
         pc (get-pc state)
         x (get-x state)
-        address (get-address memory (inc pc))
+        address (memory/cpu-read memory (inc pc))
         offset-address (+ x address)
-        indirect-address (memory/cpu-read memory offset-address)]
+        indirect-address (get-address memory offset-address)]
     (assoc op :resolved-arg (memory/cpu-read memory indirect-address)
            :resolved-address indirect-address)))
 
@@ -782,9 +782,9 @@
                                  resolved-arg resolved-address] :as op}]
   (let [[shifted carry] (arith/asl resolved-arg)
         c (get-carry state)
-        rotated (+ shifted (* 128 c))
+        n (get-negative state)
+        rotated (+ shifted n)
         memory (get-memory state)]
-    (println (pprint/cl-format nil "~X" shifted))
     (cond-> state
       (= :accumulator address-mode) (set-a-to rotated)
       (not= :accumulator address-mode) (write-memory resolved-address rotated)
@@ -986,15 +986,29 @@
                   (println instruction)
                   (exec-op state instruction)))))
 
-(defn parse-address [state {:keys [address-mode resolved-arg resolved-address fn] :as op}]
-  (case address-mode
-    :immediate (pprint/cl-format nil "#$~:@(~2,'0X~)" resolved-arg)
-    :absolute (cond (get #{:jmp :jsr} fn) (pprint/cl-format nil "$~:@(~4,'0X~)" resolved-address)
-                    :else (pprint/cl-format nil "$~:@(~4,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg))
-    :implied ""
-    :accumulator "A"
-    :relative (pprint/cl-format nil "$~:@(~2,'0X~)" resolved-address)
-    :zero (pprint/cl-format nil "$~:@(~2,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg)))
+(defn log-indirect-x [state {:keys [address-mode resolved-arg resolved-address] :as op}]
+  (let [memory (get-memory state)
+        pc (get-pc state)
+        x (get-x state)
+        initial-address (memory/cpu-read memory (inc pc))]
+    (pprint/cl-format nil "($~:@(~2,'0X~),X) @ ~:@(~2,'0X~) = ~:@(~4,'0X~) = ~:@(~2,'0X~)"
+                      (memory/cpu-read memory (inc pc))
+                      (+ x initial-address)
+                      resolved-address
+                      resolved-arg)))
+
+(defn log-address [state {:keys [address-mode resolved-arg resolved-address fn] :as op}]
+  (let [memory (get-memory state)
+        pc (get-pc state)]
+    (case address-mode
+     :immediate (pprint/cl-format nil "#$~:@(~2,'0X~)" resolved-arg)
+     :absolute (cond (get #{:jmp :jsr} fn) (pprint/cl-format nil "$~:@(~4,'0X~)" resolved-address)
+                     :else (pprint/cl-format nil "$~:@(~4,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg))
+     :implied ""
+     :indirect-x (log-indirect-x state op)
+     :accumulator "A"
+     :relative (pprint/cl-format nil "$~:@(~2,'0X~)" resolved-address)
+     :zero (pprint/cl-format nil "$~:@(~2,'0X~) = ~:@(~2,'0X~)" resolved-address resolved-arg))))
 
 (defn cpu-state [state]
   (let [a (get-a state)
@@ -1015,7 +1029,7 @@
         byte-two (if (<= 2 bytes-read) (pprint/cl-format nil "~:@(~2,'0X~)" (memory/cpu-read memory (inc pc))) "  ")
         byte-three (if (<= 3 bytes-read) (pprint/cl-format nil "~:@(~2,'0X~)" (memory/cpu-read memory (+ 2 pc))) "  ")
         opcode (pprint/cl-format nil "~:@(~A~)" (name (:fn instruction)))
-        address (parse-address state instruction)
+        address (log-address state instruction)
         cpu-state (cpu-state state)]
     (pprint/cl-format nil "~:@(~4,'0X~) ~A ~A ~A ~A ~A ~A"
                       pc
