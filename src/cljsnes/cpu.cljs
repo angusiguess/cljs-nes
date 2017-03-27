@@ -1000,7 +1000,7 @@
         initial-address (memory/cpu-read memory (inc pc))]
     (pprint/cl-format nil "($~:@(~2,'0X~),X) @ ~:@(~2,'0X~) = ~:@(~4,'0X~) = ~:@(~2,'0X~)"
                       (memory/cpu-read memory (inc pc))
-                      (+ x initial-address)
+                      (mod (+ x initial-address) 0x100)
                       resolved-address
                       resolved-arg)))
 
