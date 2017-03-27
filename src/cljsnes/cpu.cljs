@@ -615,10 +615,9 @@
 (defmethod exec-op :eor [state
                          {:keys [cycles bytes-read resolved-arg] :as op}]
   (let [a (get-a state)
-        x-or (-> a
-                 (bit-xor resolved-arg)
-                 (bit-and 0xFF))]
+        x-or (bit-xor a resolved-arg)]
     (cond-> state
+      true (set-a-to x-or)
       true (set-zero x-or)
       true (set-negative x-or)
       true (set-ticks! cycles)
