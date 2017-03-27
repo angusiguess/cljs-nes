@@ -414,7 +414,7 @@
       true (set-negative shifted)
       true (set-ticks! cycles)
       (= :accumulator address-mode) (set-a-to shifted)
-      (not= :accumulator address-mode) (update :memory cpu/write resolved-address shifted)
+      (not= :accumulator address-mode) (update :memory memory/cpu-write resolved-address shifted)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :bcc [state
@@ -796,15 +796,14 @@
                          {:keys [cycles bytes-read address-mode
                                  resolved-arg resolved-address] :as op}]
   (let [[shifted carry] (arith/lsr resolved-arg)
-        _ (println (pprint/cl-format nil "~X" shifted))
-        rotated (+ shifted (* 128 carry))
+        rotated (+ shifted (* 128 c))
         memory (get-memory state)]
     (cond-> state
       (= :accumulator address-mode) (set-a-to rotated)
       (not= :accumulator address-mode) (write-memory resolved-address rotated)
       true (set-carry-to carry)
       true (set-zero rotated)
-      true (set-negative rotated)
+      true (set-negative-to c)
       true (set-ticks! cycles)
       true (advance-pc bytes-read))))
 
