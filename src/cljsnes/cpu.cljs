@@ -271,7 +271,8 @@
 ;; Address modes
 
 
-(defmulti address (fn [state op] (:address-mode op)))
+(defmulti address (fn [state op]
+                    (:address-mode op)))
 
 (defmethod address :immediate [state op]
   (let [pc (get-pc state)
@@ -1050,6 +1051,7 @@
   (let [pc (get-pc state)
         memory (get-memory state)
         op (memory/cpu-read memory pc)
+        _ (println "OP" op)
         instruction (->> (get opcodes/ops op)
                          (address state))]
     (-> state

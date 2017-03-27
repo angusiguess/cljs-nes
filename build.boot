@@ -17,7 +17,7 @@
  '[adzerk.boot-cljs      :refer [cljs]]
  '[adzerk.boot-cljs-repl :refer [cljs-repl start-repl]]
  '[adzerk.boot-reload    :refer [reload]]
- '[crisptrutski.boot-cljs-test :refer [test-cljs]])
+ '[crisptrutski.boot-cljs-test :refer [test-cljs] :as cljs-test])
 
 (deftask testing [] (merge-env! :source-paths #{"test"}) identity)
 
