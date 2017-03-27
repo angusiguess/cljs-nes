@@ -402,18 +402,19 @@
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :asl [state {:keys [cycles bytes-read
-                                       resolved-arg address-mode :as op]}]
-  (let [to-shift (if (= :accumulator address-mode) (get-a state)
+                                       resolved-arg resolved-address address-mode :as op]}]
+  (let [memory (get-memory state)
+        to-shift (if (= :accumulator address-mode) (get-a state)
                      resolved-arg)
         [shifted carry] (arith/asl to-shift)]
-    (println (pprint/cl-format nil "~X ~X" to-shift shifted))
     (cond-> state
       (ppu-status-read? op) ppu/read-status
       true (set-carry-to carry)
       true (set-zero shifted)
       true (set-negative shifted)
       true (set-ticks! cycles)
-      true (set-a-to shifted)
+      (= :accumulator address-mode) (set-a-to shifted)
+      (not= :accumulator address-mode) (update :memory cpu/write resolved-address shifted)
       true (advance-pc bytes-read))))
 
 (defmethod exec-op :bcc [state
@@ -795,6 +796,7 @@
                          {:keys [cycles bytes-read address-mode
                                  resolved-arg resolved-address] :as op}]
   (let [[shifted carry] (arith/lsr resolved-arg)
+        _ (println (pprint/cl-format nil "~X" shifted))
         rotated (+ shifted (* 128 carry))
         memory (get-memory state)]
     (cond-> state
