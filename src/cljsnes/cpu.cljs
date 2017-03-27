@@ -781,12 +781,14 @@
                          {:keys [cycles bytes-read address-mode
                                  resolved-arg resolved-address] :as op}]
   (let [[shifted carry] (arith/asl resolved-arg)
-        rotated (+ shifted (* 128 carry))
+        c (get-carry state)
+        rotated (+ shifted (* 128 c))
         memory (get-memory state)]
+    (println (pprint/cl-format nil "~X" shifted))
     (cond-> state
       (= :accumulator address-mode) (set-a-to rotated)
       (not= :accumulator address-mode) (write-memory resolved-address rotated)
-      true (set-carry-to carry)
+      true (set-carry-to c)
       true (set-zero rotated)
       true (set-negative rotated)
       true (set-ticks! cycles)
