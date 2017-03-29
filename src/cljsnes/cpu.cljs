@@ -1062,6 +1062,7 @@
   (let [pc (get-pc state)
         memory (get-memory state)
         op (memory/cpu-read memory pc)
+        _ (println op)
         instruction (->> (get opcodes/ops op)
                          (address state))]
     (tick! state instruction)))

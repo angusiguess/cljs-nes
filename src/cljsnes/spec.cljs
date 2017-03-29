@@ -31,8 +31,6 @@
 
 (s/def :cpu/d ::bit)
 
-(s/def :cpu/b ::bit)
-
 (s/def :cpu/u ::bit)
 
 (s/def :cpu/v ::bit)
@@ -53,7 +51,7 @@
                                     :cpu/i :cpu/z :cpu/c]))
 
 (s/def :state/cpu (s/keys :req-un [:cpu/a :cpu/x :cpu/pc :cpu/s :cpu/c
-                                   :cpu/z :cpu/i :cpu/d :cpu/b :cpu/u
+                                   :cpu/z :cpu/i :cpu/d :cpu/u
                                    :cpu/v :cpu/n :cpu/cycles :cpu/ticks
                                    :cpu/memory]))
 
