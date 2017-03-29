@@ -7,8 +7,6 @@
 
 (defonce state (r/atom nil))
 
-(defonce order (r/atom (cycle [:ppu :ppu :ppu :cpu])))
-
 (defonce save-state (r/atom nil))
 
 (defn make-buffer
@@ -19,7 +17,8 @@
      (into [] (repeat 225 row)))))
 
 (defn init-state [memory]
-  {:cpu {:a 0
+  {:order [:ppu :ppu :ppu :cpu]
+   :cpu {:a 0
          :x 0
          :y 0
          :pc 0
@@ -47,6 +46,12 @@
    :display {:front (make-buffer 0x26)
              :back (make-buffer 0x27)}})
 
+(defn get-order [state]
+  (get state :order))
+
+(defn step-order [state]
+  (update state :order #(drop 1 (cycle %))))
+
 (defn init-vectors [state]
   (let [cpu-mem (get state :memory)]
     (-> state
@@ -57,14 +62,12 @@
 
 (defn init! [memory]
   (reset! state (init-vectors
-                 (init-state memory)))
-  (reset! order (cycle [:ppu :ppu :ppu :cpu])))
+                 (init-state memory))))
 
 (defn step! []
-  (let [next (first @order)]
-    (swap! order rest)
-    (if (= :ppu next) (swap! state ppu/step)
-        (swap! state cpu/step))))
+  (let [next (first (get-order @state))]
+    (if (= :ppu next) (swap! state (comp step-order ppu/step))
+        (swap! state (comp step-order cpu/step)))))
 
 (defn save-state! []
   (reset! save-state @state))
