@@ -50,7 +50,8 @@
   (get state :order))
 
 (defn step-order [state]
-  (update state :order #(drop 1 (cycle %))))
+  (update state :order #(into []
+                              (take 4 (drop 1 (cycle %))))))
 
 (defn init-vectors [state]
   (let [cpu-mem (get state :memory)]
